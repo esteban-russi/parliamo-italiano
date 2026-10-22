@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { INITIAL_PERSONAS, INITIAL_MESSAGES } from './data/personas';
 import { Persona, ChatMessage, DevSettings, CallMode } from './types';
+import { HomePage } from './components/HomePage';
 import { SocialSidebar } from './components/SocialSidebar';
 import { ChatInterface } from './components/ChatInterface';
 import { PhoneCallModal } from './components/PhoneCallModal';
@@ -9,6 +10,7 @@ import { PersonaProfileModal } from './components/PersonaProfileModal';
 import { speechService } from './utils/speech';
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<'home' | 'studio'>('home');
   const [personas] = useState<Persona[]>(INITIAL_PERSONAS);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(INITIAL_PERSONAS[0]);
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
@@ -140,30 +142,52 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-100 font-sans text-slate-900">
+    <div className="min-h-screen w-full bg-slate-100 font-sans text-slate-900">
       
-      {/* Left Column: Social Media Contacts & Stories Feed (Light Mode) */}
-      <SocialSidebar
-        personas={personas}
-        selectedPersona={selectedPersona}
-        onSelectPersona={(persona) => setSelectedPersona(persona)}
-        onStartCall={(persona, mode) => handleStartCall(persona, mode)}
-        onOpenDevLab={() => setIsDevLabOpen(true)}
-      />
+      {/* View 1: Home Page */}
+      {currentView === 'home' ? (
+        <HomePage
+          personas={personas}
+          onStartChatWith={(persona) => {
+            setSelectedPersona(persona);
+            setCurrentView('studio');
+          }}
+          onStartCallWith={(persona, mode) => {
+            setSelectedPersona(persona);
+            setCurrentView('studio');
+            setActiveCall({ persona, mode });
+          }}
+          onOpenStudio={() => setCurrentView('studio')}
+          onOpenDevLab={() => setIsDevLabOpen(true)}
+        />
+      ) : (
+        /* View 2: Studio / Social Messenger & Phone Interface */
+        <div className="flex h-screen w-screen overflow-hidden bg-slate-100">
+          {/* Left Column: Social Media Contacts & Stories Feed */}
+          <SocialSidebar
+            personas={personas}
+            selectedPersona={selectedPersona}
+            onSelectPersona={(persona) => setSelectedPersona(persona)}
+            onStartCall={(persona, mode) => handleStartCall(persona, mode)}
+            onOpenDevLab={() => setIsDevLabOpen(true)}
+            onGoHome={() => setCurrentView('home')}
+          />
 
-      {/* Middle Column: Conversational Italian Chat Interface (Light Mode with Red Accent) */}
-      <ChatInterface
-        persona={selectedPersona}
-        messages={activeMessages}
-        devSettings={devSettings}
-        onSendMessage={handleSendMessage}
-        onStartCall={(mode) => handleStartCall(selectedPersona, mode)}
-        onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
-        onOpenDevLab={() => setIsDevLabOpen(true)}
-        isAiGenerating={isAiGenerating}
-      />
+          {/* Middle Column: Conversational Italian Chat Interface */}
+          <ChatInterface
+            persona={selectedPersona}
+            messages={activeMessages}
+            devSettings={devSettings}
+            onSendMessage={handleSendMessage}
+            onStartCall={(mode) => handleStartCall(selectedPersona, mode)}
+            onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
+            onOpenDevLab={() => setIsDevLabOpen(true)}
+            isAiGenerating={isAiGenerating}
+          />
+        </div>
+      )}
 
-      {/* Full-Screen Phone Call Interface (Light Mode, Red Branding, No Avatars) */}
+      {/* Full-Screen Phone Call Interface (Can be launched from Home or Studio) */}
       {activeCall && (
         <PhoneCallModal
           persona={activeCall.persona}

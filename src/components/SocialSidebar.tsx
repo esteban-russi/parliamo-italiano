@@ -20,6 +20,7 @@ interface SocialSidebarProps {
   onSelectPersona: (persona: Persona) => void;
   onStartCall: (persona: Persona, mode: 'audio' | 'video') => void;
   onOpenDevLab: () => void;
+  onGoHome?: () => void;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
   onSelectPersona,
   onStartCall,
   onOpenDevLab,
+  onGoHome,
   className = ''
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -73,15 +75,28 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
       <div className="p-4 border-b border-slate-100 bg-white">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-xl font-editorial font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
-              Parlami
+            <button
+              onClick={onGoHome}
+              className="text-xl font-editorial font-bold tracking-tight text-slate-900 hover:text-red-700 flex items-center gap-1.5 transition-colors text-left"
+              title="Torna alla Home"
+            >
+              <span>Parlami</span>
               <span className="text-[11px] font-sans font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-200/60">
                 Italiano
               </span>
-            </span>
+            </button>
           </div>
 
           <div className="flex items-center gap-1.5">
+            {onGoHome && (
+              <button
+                onClick={onGoHome}
+                className="px-2 py-1 text-xs font-semibold rounded-lg bg-stone-100 hover:bg-stone-200 text-slate-700 transition-colors"
+                title="Torna alla Home Page"
+              >
+                Home
+              </button>
+            )}
             {/* Learning Streak */}
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-100 text-xs text-red-600 font-semibold" title="5 giorni di fila">
               <Flame className="w-3.5 h-3.5 fill-red-600" />
