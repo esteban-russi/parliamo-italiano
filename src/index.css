@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #0f172a;
+    background-color: #f8fafc;
+  }
+}
+
+.font-editorial {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-mono-data {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes waveBar {
+  0%, 100% { height: 6px; }
+  50% { height: 28px; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.15); opacity: 0.9; }
+}
+
+@keyframes gentleFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-wave-1 { animation: waveBar 1.2s ease-in-out infinite; }
+.animate-wave-2 { animation: waveBar 0.9s ease-in-out 0.2s infinite; }
+.animate-wave-3 { animation: waveBar 1.4s ease-in-out 0.4s infinite; }
+.animate-wave-4 { animation: waveBar 0.8s ease-in-out 0.1s infinite; }
+.animate-wave-5 { animation: waveBar 1.1s ease-in-out 0.3s infinite; }
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.4s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: gentleFloat 3s ease-in-out infinite;
+}
