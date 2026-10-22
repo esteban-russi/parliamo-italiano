@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { INITIAL_PERSONAS, INITIAL_MESSAGES } from './data/personas';
-import { Persona, ChatMessage, DevSettings, CallMode } from './types';
+import { Persona, ChatMessage, DevSettings } from './types';
 import { HomePage } from './components/HomePage';
 import { SocialSidebar } from './components/SocialSidebar';
 import { ChatInterface } from './components/ChatInterface';
-import { PhoneCallModal } from './components/PhoneCallModal';
+import { VideoCallModal } from './components/VideoCallModal';
 import { DevSettingsDrawer } from './components/DevSettingsDrawer';
 import { PersonaProfileModal } from './components/PersonaProfileModal';
 import { speechService } from './utils/speech';
@@ -16,11 +16,8 @@ export default function App() {
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
   const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
   
-  // Call State
-  const [activeCall, setActiveCall] = useState<{
-    persona: Persona;
-    mode: CallMode;
-  } | null>(null);
+  // Video Call State (Video-only as requested)
+  const [activeVideoCallPersona, setActiveVideoCallPersona] = useState<Persona | null>(null);
 
   // Modals & Drawers
   const [isDevLabOpen, setIsDevLabOpen] = useState<boolean>(false);
@@ -64,7 +61,6 @@ export default function App() {
     setIsAiGenerating(true);
 
     try {
-      // Real Server-side Gemini Chat Request
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,17 +128,17 @@ export default function App() {
     }, 500);
   };
 
-  const handleStartCall = (persona: Persona, mode: CallMode) => {
+  const handleStartVideoCall = (persona: Persona) => {
     setSelectedPersona(persona);
-    setActiveCall({ persona, mode });
+    setActiveVideoCallPersona(persona);
   };
 
-  const handleEndCall = () => {
-    setActiveCall(null);
+  const handleEndVideoCall = () => {
+    setActiveVideoCallPersona(null);
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-100 font-sans text-slate-900">
+    <div className="min-h-screen w-full bg-[#faf8ff] font-friendly text-purple-950">
       
       {/* View 1: Home Page */}
       {currentView === 'home' ? (
@@ -152,23 +148,23 @@ export default function App() {
             setSelectedPersona(persona);
             setCurrentView('studio');
           }}
-          onStartCallWith={(persona, mode) => {
+          onStartVideoCallWith={(persona) => {
             setSelectedPersona(persona);
             setCurrentView('studio');
-            setActiveCall({ persona, mode });
+            setActiveVideoCallPersona(persona);
           }}
           onOpenStudio={() => setCurrentView('studio')}
           onOpenDevLab={() => setIsDevLabOpen(true)}
         />
       ) : (
-        /* View 2: Studio / Social Messenger & Phone Interface */
-        <div className="flex h-screen w-screen overflow-hidden bg-slate-100">
+        /* View 2: Studio / Social Messenger & Video Call Stage */
+        <div className="flex h-screen w-screen overflow-hidden bg-[#faf8ff]">
           {/* Left Column: Social Media Contacts & Stories Feed */}
           <SocialSidebar
             personas={personas}
             selectedPersona={selectedPersona}
             onSelectPersona={(persona) => setSelectedPersona(persona)}
-            onStartCall={(persona, mode) => handleStartCall(persona, mode)}
+            onStartVideoCall={(persona) => handleStartVideoCall(persona)}
             onOpenDevLab={() => setIsDevLabOpen(true)}
             onGoHome={() => setCurrentView('home')}
           />
@@ -179,7 +175,7 @@ export default function App() {
             messages={activeMessages}
             devSettings={devSettings}
             onSendMessage={handleSendMessage}
-            onStartCall={(mode) => handleStartCall(selectedPersona, mode)}
+            onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
             onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
             onOpenDevLab={() => setIsDevLabOpen(true)}
             isAiGenerating={isAiGenerating}
@@ -187,13 +183,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Full-Screen Phone Call Interface (Can be launched from Home or Studio) */}
-      {activeCall && (
-        <PhoneCallModal
-          persona={activeCall.persona}
-          mode={activeCall.mode}
+      {/* Dedicated Video Call Modal (Visual Video Calling with Student Camera View) */}
+      {activeVideoCallPersona && (
+        <VideoCallModal
+          persona={activeVideoCallPersona}
           devSettings={devSettings}
-          onEndCall={handleEndCall}
+          onEndCall={handleEndVideoCall}
           onOpenDevSettings={() => setIsDevLabOpen(true)}
         />
       )}
@@ -212,7 +207,7 @@ export default function App() {
         persona={selectedPersona}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onStartCall={(mode) => handleStartCall(selectedPersona, mode)}
+        onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
       />
 
     </div>
@@ -252,8 +247,8 @@ function generatePersonaFallbackMessage(persona: Persona, userText: string): Cha
       id: `b-${Date.now()}`,
       sender: 'persona',
       personaId: 'matteo',
-      text: 'Bravissimo! Mi fa sempre piacere chiacchierare in italiano. Ti va se ti spiego come descrivere la colazione tipica italiana?',
-      translation: 'Very good! It\'s always a pleasure to chat in Italian. How about I explain how to describe a typical Italian breakfast?',
+      text: 'Bravissimo! Mi fa sempre piacere chiacchierare in video e chat. Ti va se ti spiego come descrivere la colazione tipica italiana?',
+      translation: 'Very good! It\'s always a pleasure to chat on video and text. How about I explain how to describe a typical Italian breakfast?',
       grammarNotes: [
         {
           wordOrPhrase: 'chiacchierare',
@@ -269,12 +264,12 @@ function generatePersonaFallbackMessage(persona: Persona, userText: string): Cha
     id: `b-${Date.now()}`,
     sender: 'persona',
     personaId: persona.id,
-    text: `Che bella frase! In Italia apprezziamo molto la spontaneità nella conversazione. Come posso aiutarti oggi?`,
-    translation: `What a nice sentence! In Italy we really appreciate spontaneity in conversation. How can I help you today?`,
+    text: `Che bella frase! In videochiamata ti esprimi con grande naturalezza. Come posso aiutarti oggi?`,
+    translation: `What a nice sentence! On video call you express yourself with great natural ease. How can I help you today?`,
     grammarNotes: [
       {
-        wordOrPhrase: 'spontaneità',
-        explanation: 'Natural spontaneity in spoken expression.',
+        wordOrPhrase: 'naturalezza',
+        explanation: 'Naturalness and ease in spoken expression.',
         category: 'vocabulary'
       }
     ],
