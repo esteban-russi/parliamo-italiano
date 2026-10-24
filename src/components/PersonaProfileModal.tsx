@@ -89,7 +89,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200/70 relative">
             <Quote className="w-5 h-5 text-purple-300 absolute top-3 right-3" />
             <div className="text-[11px] uppercase tracking-wider text-purple-700 font-bold mb-1">
-              Motto & Filosofia
+              Motto & Philosophy
             </div>
             <p className="text-base font-friendly italic text-purple-950 font-semibold">
               &ldquo;{persona.nativeSaying}&rdquo;
@@ -103,7 +103,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-purple-900 mb-1.5 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-              <span>Chi Sono</span>
+              <span>About Me</span>
             </h4>
             <p className="text-slate-600 leading-relaxed text-xs sm:text-sm">
               {persona.bio}
@@ -114,7 +114,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-200/60">
             <div className="text-[11px] font-bold text-purple-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>Stile Linguistico & Dialetto</span>
+              <span>Linguistic Style & Regional Nuance</span>
             </div>
             <p className="text-xs text-slate-700">
               {persona.dialectSpecialty}
@@ -124,7 +124,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           {/* Topics */}
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-purple-900 mb-2">
-              Argomenti di Conversazione
+              Conversation Topics
             </h4>
             <div className="flex flex-wrap gap-2">
               {persona.topics.map((t, idx) => (
@@ -141,7 +141,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           {/* Voice sample */}
           <div className="flex items-center justify-between p-3.5 rounded-2xl bg-purple-50/60 border border-purple-200/70">
             <div>
-              <div className="text-xs font-bold text-purple-950">Voce AI Assegnata</div>
+              <div className="text-xs font-bold text-purple-950">Assigned AI Voice</div>
               <div className="text-[11px] text-purple-600 font-mono-data">{persona.voiceId} (Gemini 3.8 Server)</div>
             </div>
             <button
@@ -150,7 +150,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
               className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1.5 text-xs font-bold transition-colors shadow-xs disabled:opacity-60"
             >
               <Volume2 className="w-3.5 h-3.5" />
-              <span>{isPlayingAudio ? 'In riproduzione...' : 'Ascolta Voce'}</span>
+              <span>{isPlayingAudio ? 'Playing voice...' : 'Listen to Voice'}</span>
             </button>
           </div>
 
@@ -166,7 +166,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs transition-transform active:scale-95 shadow-md shadow-purple-500/20 font-friendly"
           >
             <Video className="w-4 h-4" />
-            <span>Avvia Videochiamata</span>
+            <span>Start Video Call</span>
           </button>
         </div>
 

@@ -47,8 +47,8 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
     setIsTestingVoice(true);
     setTestStatusMessage(
       localSettings.voiceProvider === 'gemini_live'
-        ? 'Chiamata al server Gemini 3.8 TTS...'
-        : 'Sintesi vocale locale in corso...'
+        ? 'Calling Gemini 3.8 TTS server...'
+        : 'Local speech synthesis in progress...'
     );
 
     await speechService.speakSmart(
@@ -58,16 +58,16 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
         voiceName: localSettings.voiceId,
         rate: localSettings.speechRate,
         onStart: () => {
-          setTestStatusMessage('Riproduzione audio in corso...');
+          setTestStatusMessage('Playing audio stream...');
         },
         onEnd: () => {
           setIsTestingVoice(false);
-          setTestStatusMessage('Test audio completato con successo!');
+          setTestStatusMessage('Voice test completed successfully!');
           setTimeout(() => setTestStatusMessage(''), 3000);
         },
         onError: () => {
           setIsTestingVoice(false);
-          setTestStatusMessage('Riproduzione completata.');
+          setTestStatusMessage('Playback finished.');
           setTimeout(() => setTestStatusMessage(''), 3000);
         }
       }
@@ -147,7 +147,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                   SERVER LIVE
                 </span>
               </h3>
-              <p className="text-xs text-purple-600/80">Configura modelli vocali e parametri</p>
+              <p className="text-xs text-purple-600/80">Configure voice models and backend parameters</p>
             </div>
           </div>
 
@@ -155,13 +155,14 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
             <button
               onClick={handleResetDefaults}
               className="p-1.5 rounded-xl hover:bg-purple-100 text-purple-600 transition-colors"
-              title="Ripristina valori di default"
+              title="Reset to defaults"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
               className="p-1.5 rounded-xl hover:bg-purple-100 text-purple-600 transition-colors"
+              title="Close drawer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -240,18 +241,18 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
           {/* SECTION 2: VOICE ID / PRESET */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-purple-900 font-friendly">
-              Voce Gemini Prebuilt Voice ID
+              Gemini Prebuilt Voice ID
             </label>
             <select
               value={localSettings.voiceId}
               onChange={(e) => handleChange('voiceId', e.target.value)}
               className="w-full bg-purple-50/60 border border-purple-200 rounded-2xl px-3 py-2 text-xs text-purple-950 focus:outline-none focus:border-purple-600 focus:bg-white"
             >
-              <option value="Fenrir">Fenrir · Caldo, naturale & rassicurante (Consigliato)</option>
-              <option value="Kore">Kore · Dolce, accogliente & materno (Nonna / Sofia)</option>
-              <option value="Puck">Puck · Vivace, giovanile & brillante (Giulia)</option>
-              <option value="Charon">Charon · Profondo, autorevole & moderno (Marco)</option>
-              <option value="Zephyr">Zephyr · Neutro, chiaro & bilanciato</option>
+              <option value="Fenrir">Fenrir · Warm, natural & reassuring (Recommended)</option>
+              <option value="Kore">Kore · Gentle, welcoming & maternal (Nonna / Sofia)</option>
+              <option value="Puck">Puck · Lively, youthful & bright (Giulia)</option>
+              <option value="Charon">Charon · Deep, authoritative & modern (Marco)</option>
+              <option value="Zephyr">Zephyr · Neutral, clear & balanced</option>
             </select>
             
             <div className="pt-1">
@@ -261,7 +262,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                 className="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white flex items-center justify-center gap-2 transition-all font-bold text-xs disabled:opacity-50 shadow-sm"
               >
                 <Play className="w-3.5 h-3.5" />
-                <span>{isTestingVoice ? 'Generazione audio...' : 'Testa Voce Server Gemini Adesso'}</span>
+                <span>{isTestingVoice ? 'Synthesizing audio...' : 'Test Gemini Server Voice Now'}</span>
               </button>
               {testStatusMessage && (
                 <p className="text-[11px] text-purple-700 text-center mt-1.5 font-semibold animate-in fade-in">
@@ -275,12 +276,12 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
           <div className="space-y-4 pt-2 border-t border-purple-100">
             <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 uppercase tracking-wider font-friendly">
               <Volume2 className="w-3.5 h-3.5 text-purple-600" />
-              <span>Parametri Audio & Flusso</span>
+              <span>Audio & Stream Parameters</span>
             </div>
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-purple-900 font-semibold">Velocità Voce (Speech Rate)</span>
+                <span className="text-purple-900 font-semibold">Speech Rate</span>
                 <span className="font-mono text-purple-700 font-bold">{localSettings.speechRate.toFixed(2)}x</span>
               </div>
               <input
@@ -293,9 +294,9 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                 className="w-full accent-purple-600 cursor-pointer"
               />
               <div className="flex justify-between text-[10px] text-purple-400">
-                <span>0.7x (Principiante)</span>
+                <span>0.7x (Beginner)</span>
                 <span>1.0x (Standard)</span>
-                <span>1.3x (Nativo)</span>
+                <span>1.3x (Native)</span>
               </div>
             </div>
 
@@ -320,12 +321,12 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
           <div className="space-y-4 pt-2 border-t border-purple-100">
             <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900 uppercase tracking-wider font-friendly">
               <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-              <span>Didattica & Dialetti</span>
+              <span>Pedagogy & Regional Dialects</span>
             </div>
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-purple-900 font-semibold">Temperatura LLM (Creatività)</span>
+                <span className="text-purple-900 font-semibold">LLM Temperature (Creativity)</span>
                 <span className="font-mono text-purple-700 font-bold">{localSettings.temperature.toFixed(2)}</span>
               </div>
               <input
@@ -341,13 +342,13 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-purple-900 mb-1.5 font-friendly">
-                Rigidità Correzione Grammaticale
+                Grammar Correction Strictness
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'conversational', label: 'Informale' },
-                  { id: 'tutor', label: 'Tutor Amico' },
-                  { id: 'strict', label: 'Professore' }
+                  { id: 'conversational', label: 'Casual' },
+                  { id: 'tutor', label: 'Friendly Tutor' },
+                  { id: 'strict', label: 'Strict Professor' }
                 ].map(s => (
                   <button
                     key={s.id}
@@ -377,7 +378,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                 className="text-[11px] text-purple-700 hover:text-purple-900 flex items-center gap-1 font-mono font-bold"
               >
                 {copiedPayload ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedPayload ? 'Copiato' : 'Copia JSON'}</span>
+                <span>{copiedPayload ? 'Copied' : 'Copy JSON'}</span>
               </button>
             </div>
             <pre className="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-[11px] font-mono-data text-emerald-400 overflow-x-auto max-h-40">
@@ -390,13 +391,13 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
         {/* Drawer Footer */}
         <div className="p-4 border-t border-purple-100 bg-[#faf8ff] flex items-center justify-between">
           <span className="text-[11px] text-purple-600 font-medium">
-            Full-Stack Server attivo su porta 3000
+            Full-Stack Server active on port 3000
           </span>
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-colors shadow-xs font-friendly"
           >
-            Salva & Chiudi
+            Save & Close
           </button>
         </div>
 

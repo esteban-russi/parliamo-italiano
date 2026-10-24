@@ -190,17 +190,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ? 'bg-purple-100/80 text-purple-800 border-purple-300 font-bold'
                 : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
             }`}
-            title="Mostra o nascondi le traduzioni in inglese"
+            title="Show or hide English translations"
           >
             <Languages className="w-3.5 h-3.5 text-purple-600" />
-            <span>{showAllTranslations ? 'Traduzioni ON' : 'Solo Italiano'}</span>
+            <span>{showAllTranslations ? 'Translations ON' : 'Italian Only'}</span>
           </button>
 
           {/* Dev Lab indicator button */}
           <button
             onClick={onOpenDevLab}
             className="hidden md:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors font-mono font-semibold"
-            title="Configura Voice Model Provider & Server Gemini"
+            title="Configure Voice Model Provider & Gemini Server"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
             <span className="truncate max-w-[120px]">
@@ -212,17 +212,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <button
             onClick={onStartVideoCall}
             className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition-transform active:scale-95"
-            title="Avvia Videochiamata Interattiva"
+            title="Start Interactive Video Call"
           >
             <Video className="w-4 h-4" />
-            <span className="font-friendly">Videochiama</span>
+            <span className="font-friendly">Video Call</span>
           </button>
 
           {/* Info Details Modal */}
           <button
             onClick={onOpenPersonaDetails}
             className="p-2 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors"
-            title="Dettagli del tutor"
+            title="Tutor details & bio"
           >
             <Info className="w-4 h-4" />
           </button>
@@ -247,7 +247,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             &ldquo;{persona.nativeSaying}&rdquo; — {persona.nativeSayingTranslation}
           </p>
           <div className="flex items-center justify-center gap-2 mt-2 pt-2 border-t border-purple-100 text-[11px] text-purple-600">
-            <span>Specialità:</span>
+            <span>Specialty:</span>
             <span className="text-purple-950 font-bold">{persona.dialectSpecialty}</span>
           </div>
         </div>
@@ -281,7 +281,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           ? (isUser ? 'bg-white text-purple-700' : 'bg-purple-600 text-white')
                           : (isUser ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200')
                       }`}
-                      title="Ascolta messaggio vocale"
+                      title="Listen to voice message"
                     >
                       {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     </button>
@@ -320,7 +320,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       className="flex items-center gap-1 text-[11px] text-purple-700 font-bold hover:text-purple-900 transition-colors"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Note di Grammatica & Vocabolario ({message.grammarNotes.length})</span>
+                      <span>Grammar & Vocabulary Notes ({message.grammarNotes.length})</span>
                       {isGrammarExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
 
@@ -349,7 +349,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <button
                       onClick={() => handlePlayVoice(message)}
                       className="hover:text-purple-700 p-0.5 rounded transition-colors text-purple-500"
-                      title="Ascolta pronuncia italiana"
+                      title="Listen to Italian pronunciation"
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </button>
@@ -365,7 +365,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <div className="flex items-center gap-2 p-3 bg-white border border-purple-200 rounded-2xl max-w-xs shadow-xs">
             <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-ping" />
             <span className="text-xs text-purple-900 font-semibold font-friendly">
-              {persona.name} sta formulando la risposta con Gemini AI...
+              {persona.name} is crafting a reply with Gemini AI...
             </span>
           </div>
         )}
@@ -380,7 +380,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none text-xs">
           <span className="text-[10px] text-purple-500 uppercase tracking-wider shrink-0 flex items-center gap-1 font-bold">
             <HelpCircle className="w-3 h-3 text-purple-600" />
-            <span>Spunti:</span>
+            <span>Starters:</span>
           </span>
           {[
             'Come si ordina al bar?',
@@ -401,7 +401,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {/* Accents Bar */}
         <div className="flex items-center justify-between text-xs pt-1.5 border-t border-purple-100/60">
           <div className="flex items-center gap-1 text-purple-600">
-            <span className="text-[10px] uppercase font-mono mr-1 text-purple-400 font-bold">Accenti:</span>
+            <span className="text-[10px] uppercase font-mono mr-1 text-purple-400 font-bold">Accents:</span>
             {['à', 'è', 'é', 'ì', 'ò', 'ù', '€', '«', '»'].map((char) => (
               <button
                 key={char}
@@ -414,7 +414,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
 
           <span className="text-[10px] text-purple-400">
-            Premi Invio per inviare
+            Press Enter to send
           </span>
         </div>
       </div>
@@ -431,7 +431,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-300'
                 : 'bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-200'
             }`}
-            title={isRecordingMic ? 'In ascolto del microfono... Clicca per fermare' : 'Parla in italiano al microfono'}
+            title={isRecordingMic ? 'Listening to microphone... Click to stop' : 'Speak Italian into microphone'}
           >
             {isRecordingMic ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -444,7 +444,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSend();
             }}
-            placeholder={`Scrivi un messaggio in italiano a ${persona.name}...`}
+            placeholder={`Type a message in Italian to ${persona.name}...`}
             className="flex-1 bg-purple-50/50 border border-purple-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
           />
 
@@ -453,7 +453,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={handleSend}
             disabled={!inputText.trim()}
             className="w-11 h-11 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-40 text-white font-bold flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-purple-500/20"
-            title="Invia messaggio"
+            title="Send message"
           >
             <Send className="w-4 h-4" />
           </button>

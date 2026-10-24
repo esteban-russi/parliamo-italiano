@@ -99,14 +99,14 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
               <button
                 onClick={onGoHome}
                 className="px-2.5 py-1 text-xs font-bold rounded-xl bg-purple-100/70 hover:bg-purple-200 text-purple-800 transition-colors"
-                title="Torna alla Home"
+                title="Back to Home"
               >
                 Home
               </button>
             )}
 
             {/* Learning Streak with Tricolore friendly badge */}
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-purple-200 text-xs text-purple-700 font-bold shadow-2xs" title="5 giorni di fila">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-purple-200 text-xs text-purple-700 font-bold shadow-2xs" title="5-day streak">
               <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
               <span className="font-mono-data">5d</span>
             </div>
@@ -115,7 +115,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             <button
               onClick={onOpenDevLab}
               className="p-1.5 rounded-xl bg-purple-100/70 hover:bg-purple-200 text-purple-700 transition-colors"
-              title="Voice Lab & Parametri"
+              title="Voice Lab & Parameters"
             >
               <Sliders className="w-4 h-4" />
             </button>
@@ -129,7 +129,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cerca tutor, città o argomento..."
+            placeholder="Search tutor, city, or topic..."
             className="w-full bg-white border border-purple-200/80 rounded-2xl pl-9 pr-3 py-2 text-xs text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all shadow-2xs"
           />
         </div>
@@ -140,9 +140,9 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
         <div className="flex items-center justify-between px-1 mb-2">
           <span className="text-[11px] font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>Espresso Culturale</span>
+            <span>Cultural Espresso</span>
           </span>
-          <span className="text-[10px] text-purple-400">Audio pillole</span>
+          <span className="text-[10px] text-purple-400">Audio snippets</span>
         </div>
 
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
@@ -189,10 +189,10 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
       {/* CEFR Level Filters */}
       <div className="px-3 py-2 border-b border-purple-100/60 flex items-center gap-1 bg-white">
         {[
-          { id: 'all', label: 'Tutti' },
-          { id: 'A', label: 'A1-A2 Base' },
-          { id: 'B', label: 'B1-B2 Medio' },
-          { id: 'C', label: 'C1 Avanzato' }
+          { id: 'all', label: 'All' },
+          { id: 'A', label: 'A1-A2 Beginner' },
+          { id: 'B', label: 'B1-B2 Intermediate' },
+          { id: 'C', label: 'C1 Advanced' }
         ].map(filter => (
           <button
             key={filter.id}
@@ -256,7 +256,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
                 </p>
               </div>
 
-              {/* ONLY Video Call Button (Standard audio call removed as requested) */}
+              {/* ONLY Video Call Button */}
               <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                 <button
                   onClick={(e) => {
@@ -264,10 +264,10 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
                     onStartVideoCall(persona);
                   }}
                   className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
-                  title={`Avvia Videochiamata con ${persona.name}`}
+                  title={`Start Video Call with ${persona.name}`}
                 >
                   <Video className="w-3.5 h-3.5" />
-                  <span className="text-[10px]">Video</span>
+                  <span className="text-[10px]">Video Call</span>
                 </button>
               </div>
             </div>
@@ -276,7 +276,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
 
         {filteredPersonas.length === 0 && (
           <div className="p-8 text-center text-xs text-purple-400">
-            Nessun tutor trovato con questi filtri.
+            No tutors found matching this level.
           </div>
         )}
       </div>

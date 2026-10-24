@@ -312,7 +312,7 @@ class SpeechService {
 export const speechService = new SpeechService();
 
 export function createSpeechRecognizer(
-  onResult: (transcript: string) => void,
+  onResult: (transcript: string, isFinal: boolean) => void,
   onEnd?: () => void,
   onError?: (err: unknown) => void
 ) {
@@ -328,16 +328,20 @@ export function createSpeechRecognizer(
   try {
     const recognition = new SpeechRecognition();
     recognition.lang = 'it-IT';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       let finalTranscript = '';
+      let isFinalResult = false;
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         finalTranscript += event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          isFinalResult = true;
+        }
       }
-      onResult(finalTranscript);
+      onResult(finalTranscript, isFinalResult);
     };
 
     if (onEnd) recognition.onend = onEnd;

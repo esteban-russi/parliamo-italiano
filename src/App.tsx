@@ -48,7 +48,7 @@ export default function App() {
       sender: 'user',
       personaId: selectedPersona.id,
       text,
-      translation: 'Messaggio inviato dallo studente',
+      translation: 'Message sent by student',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
