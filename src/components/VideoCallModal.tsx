@@ -58,12 +58,27 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const userMediaStreamRef = useRef<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<boolean>(false);
 
+  // Stable references to prevent runaway effect re-triggers
+  const personaRef = useRef<Persona>(persona);
+  personaRef.current = persona;
+
+  const devSettingsRef = useRef<DevSettings>(devSettings);
+  devSettingsRef.current = devSettings;
+
+  const isSpeakerOnRef = useRef<boolean>(isSpeakerOn);
+  isSpeakerOnRef.current = isSpeakerOn;
+
+  const dialogueHistoryRef = useRef<CallExchange[]>(dialogueHistory);
+  dialogueHistoryRef.current = dialogueHistory;
+
   const timerRef = useRef<number | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognizerRef = useRef<any>(null);
-  const silenceTimerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
+  const greetingStartedRef = useRef<boolean>(false);
   const isAiSpeakingRef = useRef<boolean>(false);
   const activeTranscriptRef = useRef<string>('');
+  const silenceTimerRef = useRef<number | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognizerRef = useRef<any>(null);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -101,7 +116,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
     };
   }, [isVideoOn]);
 
-  // Handle persona speaking with Gemini TTS & subtitles
+  // Handle persona speaking with Gemini TTS & subtitles (stable callback)
   const handlePersonaSpeak = useCallback(async (text: string, translation: string) => {
     isAiSpeakingRef.current = true;
     setSpeakingState('speaking');
@@ -110,29 +125,38 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
     setLiveUserTranscript('');
     activeTranscriptRef.current = '';
 
+    // Stop recognizer immediately so it does not capture the AI speaker audio
+    if (recognizerRef.current) {
+      try { recognizerRef.current.stop(); } catch { /* ignore */ }
+    }
+
+    const currentSec = Math.floor((Date.now() - startTimeRef.current) / 1000);
     setDialogueHistory(prev => [
       ...prev,
       {
         speaker: 'persona',
         text,
         translation,
-        timestamp: formatDuration(callDurationSec)
+        timestamp: formatDuration(currentSec)
       }
     ]);
 
-    if (isSpeakerOn) {
+    if (isSpeakerOnRef.current) {
       await speechService.speakSmart(text, {
-        provider: devSettings.voiceProvider,
-        voiceName: persona.voiceId,
-        rate: devSettings.speechRate,
-        gender: persona.voiceGender,
+        provider: devSettingsRef.current.voiceProvider,
+        voiceName: personaRef.current.voiceId,
+        rate: devSettingsRef.current.speechRate,
+        gender: personaRef.current.voiceGender,
         onStart: () => {
           isAiSpeakingRef.current = true;
           setSpeakingState('speaking');
         },
         onEnd: () => {
-          isAiSpeakingRef.current = false;
-          setSpeakingState('listening');
+          // Add a short delay for speaker audio dissipation
+          setTimeout(() => {
+            isAiSpeakingRef.current = false;
+            setSpeakingState('listening');
+          }, 400);
         },
         onError: () => {
           isAiSpeakingRef.current = false;
@@ -145,7 +169,11 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
         setSpeakingState('listening');
       }, 2500);
     }
-  }, [callDurationSec, devSettings, isSpeakerOn, persona]);
+  }, []);
+
+  // Stable ref to handlePersonaSpeak so lifecycle effect can access it without depending on it
+  const handlePersonaSpeakRef = useRef(handlePersonaSpeak);
+  handlePersonaSpeakRef.current = handlePersonaSpeak;
 
   // Automated reply processing when user pauses speaking
   const processLiveUserSpeech = useCallback(async (spokenText: string) => {
@@ -157,17 +185,23 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
       silenceTimerRef.current = null;
     }
 
+    // Stop speech recognizer while thinking and preparing AI response
+    if (recognizerRef.current) {
+      try { recognizerRef.current.stop(); } catch { /* ignore */ }
+    }
+
     setSpeakingState('thinking');
     setCurrentSubtitleText(trimmed);
     setCurrentSubtitleTranslation('Student speaking in Italian...');
 
+    const currentSec = Math.floor((Date.now() - startTimeRef.current) / 1000);
     setDialogueHistory(prev => [
       ...prev,
       {
         speaker: 'user',
         text: trimmed,
         translation: 'Student voice input',
-        timestamp: formatDuration(callDurationSec)
+        timestamp: formatDuration(currentSec)
       }
     ]);
 
@@ -179,18 +213,18 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaPrompt: persona.personaPrompt,
-          history: dialogueHistory.slice(-4),
+          personaPrompt: personaRef.current.personaPrompt,
+          history: dialogueHistoryRef.current.slice(-4),
           userMessage: trimmed,
-          temperature: devSettings.temperature,
-          grammarStrictness: devSettings.grammarStrictness
+          temperature: devSettingsRef.current.temperature,
+          grammarStrictness: devSettingsRef.current.grammarStrictness
         })
       });
 
       if (res.ok) {
         const data = await res.json();
         if (data.text) {
-          handlePersonaSpeak(data.text, data.translation || '');
+          handlePersonaSpeakRef.current(data.text, data.translation || '');
           return;
         }
       }
@@ -198,18 +232,20 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
       console.warn('Live call AI reply failed, using native fallback:', err);
     }
 
-    const fallback = generateCallFallback(persona, trimmed);
-    handlePersonaSpeak(fallback.it, fallback.en);
-  }, [callDurationSec, devSettings, dialogueHistory, handlePersonaSpeak, persona]);
+    const fallback = generateCallFallback(personaRef.current, trimmed);
+    handlePersonaSpeakRef.current(fallback.it, fallback.en);
+  }, []);
 
   // Continuous hands-free live speech recognition loop
   useEffect(() => {
-    if (callStatus !== 'connected' || isMuted || speakingState === 'speaking' || speakingState === 'thinking') {
+    if (callStatus !== 'connected' || isMuted || speakingState !== 'listening') {
       if (recognizerRef.current) {
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
       }
       return;
     }
+
+    if (isAiSpeakingRef.current) return;
 
     const recognizer = createSpeechRecognizer(
       (transcript, isFinal) => {
@@ -235,12 +271,12 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
         }
       },
       () => {
-        // Recognition ended (e.g. browser silence cutoff) - restart if still connected and in listening mode
-        if (callStatus === 'connected' && !isMuted && !isAiSpeakingRef.current) {
+        // Recognition ended - restart if still connected and in listening mode
+        if (callStatus === 'connected' && !isMuted && !isAiSpeakingRef.current && speakingState === 'listening') {
           try {
             recognizerRef.current?.start();
           } catch {
-            // Ignore already started error
+            // Ignore
           }
         }
       },
@@ -268,9 +304,11 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
     };
   }, [callStatus, isMuted, speakingState, processLiveUserSpeech]);
 
-  // Connect call audio & lifecycle
+  // Connect call audio & lifecycle (Runs ONLY ONCE per call mount)
   useEffect(() => {
+    startTimeRef.current = Date.now();
     speechService.playRingtoneBurst();
+    
     const ringInterval = setInterval(() => {
       speechService.playRingtoneBurst();
     }, 2400);
@@ -283,11 +321,14 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
         setCallDurationSec(prev => prev + 1);
       }, 1000);
 
-      // Start with persona greeting
-      handlePersonaSpeak(
-        persona.sampleAudioText,
-        `Hello! Welcome to ${persona.city}. Let's chat in Italian!`
-      );
+      // Start with persona greeting exactly ONCE
+      if (!greetingStartedRef.current) {
+        greetingStartedRef.current = true;
+        handlePersonaSpeakRef.current(
+          personaRef.current.sampleAudioText,
+          `Hello! Welcome to ${personaRef.current.city}. Let's chat in Italian!`
+        );
+      }
     }, 1800);
 
     return () => {
@@ -303,7 +344,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
         userMediaStreamRef.current.getTracks().forEach(t => t.stop());
       }
     };
-  }, [handlePersonaSpeak, persona]);
+  }, []); // Strictly empty dependency array so the call connects once!
 
   const handleHangup = () => {
     speechService.stopSpeaking();
@@ -513,7 +554,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
         </div>
 
-        {/* Video Call Controls Bar (Pure live call controls - no send button or text input) */}
+        {/* Video Call Controls Bar */}
         <div className="relative z-20 bg-slate-900/90 border-t border-purple-500/20 px-6 py-4">
           
           <div className="flex items-center justify-around mb-3 text-slate-300">
