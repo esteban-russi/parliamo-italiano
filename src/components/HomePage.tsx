@@ -74,7 +74,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           
           {/* Brand Wordmark with Italian Flag Badge */}
           <a href="#hero" className="text-2xl font-bold tracking-tight text-purple-950 flex items-center gap-2.5">
-            <span className="tracking-tight">Parlami</span>
+            <span className="tracking-tight">Parliamo Italiano</span>
             <div className="flex items-center gap-1.5 bg-purple-100/70 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-bold text-purple-800">
               <div className="flex h-2.5 w-4 rounded-xs overflow-hidden shadow-2xs border border-white/60">
                 <span className="w-1/3 bg-emerald-500" />
@@ -529,7 +529,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       <footer className="py-10 bg-white mt-auto border-t border-purple-100 text-xs text-purple-600">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <span className="text-base font-bold text-purple-950">Parlami</span>
+            <span className="text-base font-bold text-purple-950">Parliamo Italiano</span>
             <span>· Conversational Italian Learning Platform</span>
           </div>
 

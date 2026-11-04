@@ -1,5 +1,5 @@
 {
-  "name": "Parlami - Italian Conversational AI Studio",
+  "name": "Parliamo Italiano - Italian Conversational AI Studio",
   "description": "Interactive conversational Italian platform with animated AI personas, voice call and chat interface, social contact feed, and experimental voice provider lab.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -93,7 +93,7 @@ export const PersonaBadge: React.FC<PersonaBadgeProps> = ({
       {size !== 'call' && persona.isOnline && (
         <span
           className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-xs"
-          title="Online su Parlami"
+          title="Online su Parliamo Italiano"
         />
       )}
     </div>

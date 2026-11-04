@@ -94,7 +94,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
   };
 
   const payloadInspection = {
-    runtime: 'Parlami Video & Audio Engine v3.2',
+    runtime: 'Parliamo Italiano Video & Audio Engine v3.2',
     endpoints: {
       tts: '/api/tts (Gemini 3.8 Flash-Lite TTS, 24kHz WAV)',
       chat: '/api/chat (Gemini 3.8 Flash + Pedagogical JSON)'

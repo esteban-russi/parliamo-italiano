@@ -87,7 +87,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
               className="text-2xl font-friendly font-extrabold tracking-tight text-purple-950 hover:text-purple-700 flex items-center gap-1.5 transition-colors text-left"
               title="Torna alla Home"
             >
-              <span>Parlami</span>
+              <span>Parliamo Italiano</span>
               <span className="text-[11px] font-sans font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full border border-purple-200">
                 Italiano AI
               </span>

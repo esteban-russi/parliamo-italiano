@@ -51,7 +51,7 @@ app.post('/api/chat', async (req, res) => {
 
     const systemInstruction = `
 ${personaPrompt}
-Tu sei un tutor madrelingua italiano per una piattaforma di apprendimento conversazionale ("Parlami").
+Tu sei un tutor madrelingua italiano per una piattaforma di apprendimento conversazionale ("Parliamo Italiano").
 Rigidità correzione: "${grammarStrictness}".
 Rispondi SEMPRE in italiano naturale, accogliente e culturalmente autentico.
 Includi sempre la traduzione in inglese e da 1 a 3 note grammaticali/culturali concrete (parole nuove, congiuntivo, modi di dire, pronuncia).
@@ -224,7 +224,7 @@ async function startServer() {
   }
 
   app.listen(PORT, () => {
-    console.log(`Parlami server listening on http://localhost:${PORT}`);
+    console.log(`Parliamo Italiano server listening on http://localhost:${PORT}`);
   });
 }
 
