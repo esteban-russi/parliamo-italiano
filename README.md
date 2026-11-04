@@ -48,9 +48,8 @@ React 19 · TypeScript · Vite 8 · Tailwind CSS 4 · Motion · Lucide · Expres
 
 1. Install dependencies:
    ```bash
-   npm install --legacy-peer-deps
+   npm install
    ```
-   `--legacy-peer-deps` is needed because the pinned `esbuild` version is older than the one Vite 8 asks for as an optional peer.
 
 2. Create a `.env` file with your key:
    ```bash
