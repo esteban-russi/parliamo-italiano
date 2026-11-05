@@ -161,6 +161,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={onBack}
             className="lg:hidden -ml-1 p-2 rounded-xl text-purple-700 hover:bg-purple-100 transition-colors shrink-0"
             title="Back to tutors"
+            aria-label="Back to tutors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -204,6 +205,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {/* Translation Global Toggle */}
           <button
             onClick={() => setShowAllTranslations(!showAllTranslations)}
+            aria-pressed={showAllTranslations}
             className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-colors ${
               showAllTranslations
                 ? 'bg-purple-100/80 text-purple-800 border-purple-300 font-bold'
@@ -232,6 +234,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={onStartVideoCall}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition-transform active:scale-95"
             title="Start Interactive Video Call"
+            aria-label={`Start video call with ${persona.fullName}`}
           >
             <Video className="w-4 h-4" />
             <span className="font-friendly hidden sm:inline">Video Call</span>
@@ -242,6 +245,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={onOpenPersonaDetails}
             className="p-2 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors"
             title="Tutor details & bio"
+            aria-label={`${persona.fullName}: details and bio`}
           >
             <Info className="w-4 h-4" />
           </button>
@@ -301,6 +305,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           : (isUser ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200')
                       }`}
                       title="Listen to voice message"
+                      aria-label={isPlaying ? 'Stop voice message' : 'Play voice message'}
                     >
                       {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     </button>
@@ -336,6 +341,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <div className="mt-2.5 pt-2 border-t border-purple-100">
                     <button
                       onClick={() => setExpandedGrammarId(isGrammarExpanded ? null : message.id)}
+                      aria-expanded={isGrammarExpanded}
+                      aria-controls={`notes-${message.id}`}
                       className="flex items-center gap-1 text-[11px] text-purple-700 font-bold hover:text-purple-900 transition-colors"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-purple-600" />
@@ -344,7 +351,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </button>
 
                     {isGrammarExpanded && (
-                      <div className="mt-2 space-y-1.5 bg-purple-50/70 p-3 rounded-2xl border border-purple-200/80 text-[11px] animate-in fade-in-50">
+                      <div id={`notes-${message.id}`} className="mt-2 space-y-1.5 bg-purple-50/70 p-3 rounded-2xl border border-purple-200/80 text-[11px] animate-in fade-in-50">
                         {message.grammarNotes.map((note, idx) => (
                           <div key={idx} className="pb-1 border-b border-purple-200/50 last:border-0 last:pb-0 text-purple-950">
                             <span className="font-bold text-purple-800">
@@ -369,6 +376,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       onClick={() => handlePlayVoice(message)}
                       className="hover:text-purple-700 p-0.5 rounded transition-colors text-purple-500"
                       title="Listen to Italian pronunciation"
+                      aria-label={isPlaying ? 'Stop pronunciation' : 'Listen to Italian pronunciation'}
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </button>
@@ -425,6 +433,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <button
                 key={char}
                 onClick={() => insertAccent(char)}
+                aria-label={`Insert ${char}`}
                 className="w-7 h-7 sm:w-5 sm:h-5 shrink-0 rounded-lg hover:bg-purple-100 hover:text-purple-900 text-purple-800 font-bold flex items-center justify-center transition-colors"
               >
                 {char}
@@ -451,6 +460,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 : 'bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-200'
             }`}
             title={isRecordingMic ? 'Listening to microphone... Click to stop' : 'Speak Italian into microphone'}
+            aria-label={isRecordingMic ? 'Stop dictation' : 'Dictate in Italian'}
+            aria-pressed={isRecordingMic}
           >
             {isRecordingMic ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -464,6 +475,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               if (e.key === 'Enter') handleSend();
             }}
             placeholder={`Type a message in Italian to ${persona.name}...`}
+            aria-label={`Message ${persona.name} in Italian`}
             className="flex-1 bg-purple-50/50 border border-purple-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
           />
 
@@ -473,6 +485,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             disabled={!inputText.trim()}
             className="w-11 h-11 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-40 text-white font-bold flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-purple-500/20"
             title="Send message"
+            aria-label="Send message"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -106,7 +106,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             )}
 
             {/* Learning Streak with Tricolore friendly badge */}
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-purple-200 text-xs text-purple-700 font-bold shadow-2xs" title="5-day streak">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-purple-200 text-xs text-purple-700 font-bold shadow-2xs" title="5-day streak" role="img" aria-label="5-day learning streak">
               <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
               <span className="font-mono-data">5d</span>
             </div>
@@ -116,6 +116,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
               onClick={onOpenDevLab}
               className="p-1.5 rounded-xl bg-purple-100/70 hover:bg-purple-200 text-purple-700 transition-colors"
               title="Voice Lab & Parameters"
+              aria-label="Open Voice Lab settings"
             >
               <Sliders className="w-4 h-4" />
             </button>
@@ -130,6 +131,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tutor, city, or topic..."
+            aria-label="Search tutors by name, city, or topic"
             className="w-full bg-white border border-purple-200/80 rounded-2xl pl-9 pr-3 py-2 text-xs text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all shadow-2xs"
           />
         </div>
@@ -153,6 +155,8 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
               <button
                 key={story.id}
                 onClick={() => handlePlayStory(story)}
+                aria-label={`Play audio story: ${story.title}`}
+                aria-pressed={isPlaying}
                 className="flex flex-col items-center gap-1 shrink-0 group focus:outline-none"
               >
                 <div className={`relative p-0.5 rounded-2xl transition-all ${
@@ -197,6 +201,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
           <button
             key={filter.id}
             onClick={() => setLevelFilter(filter.id)}
+            aria-pressed={levelFilter === filter.id}
             className={`px-3 py-1 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
               levelFilter === filter.id
                 ? 'bg-purple-600 text-white shadow-xs'
