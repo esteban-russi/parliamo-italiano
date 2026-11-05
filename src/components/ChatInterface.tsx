@@ -52,6 +52,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [speakingState, setSpeakingState] = useState<CharacterSpeakingState>('idle');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
 
@@ -75,8 +76,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setInputText('');
   };
 
+  // Insert at the caret (replacing any selection) and keep typing focus in the composer
   const insertAccent = (char: string) => {
-    setInputText(prev => prev + char);
+    const input = inputRef.current;
+    const start = input?.selectionStart ?? inputText.length;
+    const end = input?.selectionEnd ?? inputText.length;
+    setInputText(inputText.slice(0, start) + char + inputText.slice(end));
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(start + char.length, start + char.length);
+    });
   };
 
   const handlePlayVoice = async (message: ChatMessage) => {
@@ -439,6 +448,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {['à', 'è', 'é', 'ì', 'ò', 'ù', '€', '«', '»'].map((char) => (
               <button
                 key={char}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => insertAccent(char)}
                 aria-label={`Insert ${char}`}
                 className="w-7 h-7 sm:w-5 sm:h-5 shrink-0 rounded-lg hover:bg-purple-100 hover:text-purple-900 text-purple-800 font-bold flex items-center justify-center transition-colors"
@@ -475,6 +485,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
           {/* Text Input */}
           <input
+            ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
