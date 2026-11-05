@@ -150,6 +150,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <span className="w-1/3 bg-red-500" />
       </div>
 
+      <h2 className="sr-only">Conversation with {persona.fullName}</h2>
+
       {/* Chat Top Bar */}
       <header className="px-3 sm:px-5 py-3.5 border-b border-purple-100 bg-white/95 backdrop-blur-md flex items-center justify-between gap-2 z-10 shrink-0">
         
@@ -165,9 +167,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         )}
 
         {/* Left: Persona identity */}
-        <div 
+        <button
+          type="button"
           onClick={onOpenPersonaDetails}
-          className="flex items-center gap-3 cursor-pointer group transition-opacity min-w-0 flex-1"
+          aria-label={`View ${persona.fullName}'s profile`}
+          className="flex items-center gap-3 cursor-pointer group transition-opacity min-w-0 flex-1 text-left rounded-2xl"
         >
           <PersonaBadge
             persona={persona}
@@ -177,9 +181,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-purple-950 font-friendly group-hover:text-purple-700 transition-colors truncate">
+              <span className="text-base font-bold text-purple-950 font-friendly group-hover:text-purple-700 transition-colors truncate">
                 {persona.fullName}
-              </h2>
+              </span>
               <span className="text-[10px] text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-mono font-bold border border-purple-200">
                 {persona.cefrLevel}
               </span>
@@ -192,7 +196,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Right: Actions (Only Video Call button, standard phone call removed) */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">

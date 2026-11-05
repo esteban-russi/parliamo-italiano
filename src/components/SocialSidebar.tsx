@@ -209,60 +209,64 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
       </div>
 
       {/* Contacts List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-purple-100/50">
+      <ul className="flex-1 overflow-y-auto divide-y divide-purple-100/50" aria-label="Tutors">
         {filteredPersonas.map(persona => {
           const isSelected = selectedPersona.id === persona.id;
 
           return (
-            <div
+            <li
               key={persona.id}
-              onClick={() => onSelectPersona(persona)}
-              className={`p-3.5 transition-all cursor-pointer flex items-center gap-3 relative group ${
+              className={`pr-3.5 transition-all flex items-center gap-2 relative group ${
                 isSelected
                   ? 'bg-purple-50/90 border-l-4 border-purple-600'
                   : 'hover:bg-purple-50/40'
               }`}
             >
-              <PersonaBadge
-                persona={persona}
-                size="md"
-                speakingState={isSelected ? 'idle' : 'idle'}
-              />
+              <button
+                type="button"
+                onClick={() => onSelectPersona(persona)}
+                aria-current={isSelected ? 'true' : undefined}
+                className="flex-1 min-w-0 flex items-center gap-3 p-3.5 pr-0 text-left cursor-pointer focus-visible:outline-offset-[-2px]"
+              >
+                <PersonaBadge
+                  persona={persona}
+                  size="md"
+                  speakingState={isSelected ? 'idle' : 'idle'}
+                />
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-bold text-xs text-purple-950 truncate font-friendly">
-                      {persona.fullName}
-                    </span>
-                    <span className="text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full font-mono font-bold">
-                      {persona.cefrLevel}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-bold text-xs text-purple-950 truncate font-friendly">
+                        {persona.fullName}
+                      </span>
+                      <span className="text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full font-mono font-bold">
+                        {persona.cefrLevel}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-purple-400 font-mono-data shrink-0">
+                      {persona.lastMessageTime}
                     </span>
                   </div>
-                  <span className="text-[10px] text-purple-400 font-mono-data shrink-0">
-                    {persona.lastMessageTime}
-                  </span>
-                </div>
 
-                <div className="text-[11px] text-purple-600/80 truncate flex items-center gap-1">
-                  <MapPin className="w-2.5 h-2.5 text-purple-500" />
-                  <span>{persona.city}</span>
-                  <span aria-hidden="true">·</span>
-                  <span className="truncate">{persona.role}</span>
-                </div>
+                  <div className="text-[11px] text-purple-600/80 truncate flex items-center gap-1">
+                    <MapPin className="w-2.5 h-2.5 text-purple-500" />
+                    <span>{persona.city}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="truncate">{persona.role}</span>
+                  </div>
 
-                <p className="text-[11px] text-slate-600 truncate mt-0.5">
-                  {persona.lastMessageSnippet}
-                </p>
-              </div>
+                  <p className="text-[11px] text-slate-600 truncate mt-0.5">
+                    {persona.lastMessageSnippet}
+                  </p>
+                </div>
+              </button>
 
               {/* ONLY Video Call Button: always visible on touch screens, revealed on hover/focus with a pointer */}
               <div className="flex items-center transition-opacity shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-within:opacity-100">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStartVideoCall(persona);
-                  }}
+                  onClick={() => onStartVideoCall(persona)}
+                  aria-label={`Start video call with ${persona.fullName}`}
                   className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
                   title={`Start Video Call with ${persona.name}`}
                 >
@@ -270,16 +274,16 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
                   <span className="text-[10px]">Video Call</span>
                 </button>
               </div>
-            </div>
+            </li>
           );
         })}
 
         {filteredPersonas.length === 0 && (
-          <div className="p-8 text-center text-xs text-purple-400">
-            No tutors found matching this level.
-          </div>
+          <li className="p-8 text-center text-xs text-purple-600" role="status">
+            No tutors match your search or level filter.
+          </li>
         )}
-      </div>
+      </ul>
 
       {/* Sidebar Footer */}
       <div className="p-3 border-t border-purple-100 bg-[#faf8ff] text-xs">
