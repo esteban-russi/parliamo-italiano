@@ -256,8 +256,8 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
                 </p>
               </div>
 
-              {/* ONLY Video Call Button */}
-              <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              {/* ONLY Video Call Button: always visible on touch screens, revealed on hover/focus with a pointer */}
+              <div className="flex items-center transition-opacity shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-within:opacity-100">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
