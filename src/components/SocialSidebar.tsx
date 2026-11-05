@@ -80,21 +80,21 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
 
       {/* Header Bar */}
       <div className="p-4 border-b border-purple-100/70 bg-[#faf8ff]">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={onGoHome}
-              className="text-2xl font-friendly font-extrabold tracking-tight text-purple-950 hover:text-purple-700 flex items-center gap-1.5 transition-colors text-left"
+              className="text-xl sm:text-2xl font-friendly font-extrabold tracking-tight text-purple-950 hover:text-purple-700 flex items-center gap-1.5 transition-colors text-left min-w-0"
               title="Torna alla Home"
             >
-              <span>Parliamo Italiano</span>
-              <span className="text-[11px] font-sans font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full border border-purple-200">
+              <span className="truncate">Parliamo Italiano</span>
+              <span className="hidden sm:inline text-[11px] font-sans font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full border border-purple-200">
                 Italiano AI
               </span>
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {onGoHome && (
               <button
                 onClick={onGoHome}
@@ -106,7 +106,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             )}
 
             {/* Learning Streak with Tricolore friendly badge */}
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-purple-200 text-xs text-purple-700 font-bold shadow-2xs" title="5-day streak">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-purple-200 text-xs text-purple-700 font-bold shadow-2xs" title="5-day streak" role="img" aria-label="5-day learning streak">
               <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
               <span className="font-mono-data">5d</span>
             </div>
@@ -116,6 +116,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
               onClick={onOpenDevLab}
               className="p-1.5 rounded-xl bg-purple-100/70 hover:bg-purple-200 text-purple-700 transition-colors"
               title="Voice Lab & Parameters"
+              aria-label="Open Voice Lab settings"
             >
               <Sliders className="w-4 h-4" />
             </button>
@@ -130,7 +131,8 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tutor, city, or topic..."
-            className="w-full bg-white border border-purple-200/80 rounded-2xl pl-9 pr-3 py-2 text-xs text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all shadow-2xs"
+            aria-label="Search tutors by name, city, or topic"
+            className="w-full bg-white border border-purple-200/80 rounded-2xl pl-9 pr-3 py-2 text-xs text-purple-950 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all shadow-2xs"
           />
         </div>
       </div>
@@ -142,7 +144,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
             <span>Cultural Espresso</span>
           </span>
-          <span className="text-[10px] text-purple-400">Audio snippets</span>
+          <span className="text-[10px] text-purple-600">Audio snippets</span>
         </div>
 
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
@@ -153,6 +155,8 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
               <button
                 key={story.id}
                 onClick={() => handlePlayStory(story)}
+                aria-label={`Play audio story: ${story.title}`}
+                aria-pressed={isPlaying}
                 className="flex flex-col items-center gap-1 shrink-0 group focus:outline-none"
               >
                 <div className={`relative p-0.5 rounded-2xl transition-all ${
@@ -187,7 +191,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
       </div>
 
       {/* CEFR Level Filters */}
-      <div className="px-3 py-2 border-b border-purple-100/60 flex items-center gap-1 bg-white">
+      <div className="px-3 py-2 border-b border-purple-100/60 flex items-center gap-1 bg-white overflow-x-auto scrollbar-none">
         {[
           { id: 'all', label: 'All' },
           { id: 'A', label: 'A1-A2 Beginner' },
@@ -197,7 +201,8 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
           <button
             key={filter.id}
             onClick={() => setLevelFilter(filter.id)}
-            className={`px-3 py-1 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+            aria-pressed={levelFilter === filter.id}
+            className={`px-3 py-1 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
               levelFilter === filter.id
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'text-purple-700/70 hover:text-purple-950 hover:bg-purple-50'
@@ -209,60 +214,64 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
       </div>
 
       {/* Contacts List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-purple-100/50">
+      <ul className="flex-1 overflow-y-auto divide-y divide-purple-100/50" aria-label="Tutors">
         {filteredPersonas.map(persona => {
           const isSelected = selectedPersona.id === persona.id;
 
           return (
-            <div
+            <li
               key={persona.id}
-              onClick={() => onSelectPersona(persona)}
-              className={`p-3.5 transition-all cursor-pointer flex items-center gap-3 relative group ${
+              className={`pr-3.5 transition-all flex items-center gap-2 relative group ${
                 isSelected
                   ? 'bg-purple-50/90 border-l-4 border-purple-600'
                   : 'hover:bg-purple-50/40'
               }`}
             >
-              <PersonaBadge
-                persona={persona}
-                size="md"
-                speakingState={isSelected ? 'idle' : 'idle'}
-              />
+              <button
+                type="button"
+                onClick={() => onSelectPersona(persona)}
+                aria-current={isSelected ? 'true' : undefined}
+                className="flex-1 min-w-0 flex items-center gap-3 p-3.5 pr-0 text-left cursor-pointer focus-visible:outline-offset-[-2px]"
+              >
+                <PersonaBadge
+                  persona={persona}
+                  size="md"
+                  speakingState={isSelected ? 'idle' : 'idle'}
+                />
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-bold text-xs text-purple-950 truncate font-friendly">
-                      {persona.fullName}
-                    </span>
-                    <span className="text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full font-mono font-bold">
-                      {persona.cefrLevel}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-bold text-xs text-purple-950 truncate font-friendly">
+                        {persona.fullName}
+                      </span>
+                      <span className="text-[10px] text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full font-mono font-bold">
+                        {persona.cefrLevel}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-purple-600 font-mono-data shrink-0">
+                      {persona.lastMessageTime}
                     </span>
                   </div>
-                  <span className="text-[10px] text-purple-400 font-mono-data shrink-0">
-                    {persona.lastMessageTime}
-                  </span>
+
+                  <div className="text-[11px] text-purple-600/80 truncate flex items-center gap-1">
+                    <MapPin className="w-2.5 h-2.5 text-purple-500" />
+                    <span>{persona.city}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="truncate">{persona.role}</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 truncate mt-0.5">
+                    {persona.lastMessageSnippet}
+                  </p>
                 </div>
+              </button>
 
-                <div className="text-[11px] text-purple-600/80 truncate flex items-center gap-1">
-                  <MapPin className="w-2.5 h-2.5 text-purple-500" />
-                  <span>{persona.city}</span>
-                  <span aria-hidden="true">·</span>
-                  <span className="truncate">{persona.role}</span>
-                </div>
-
-                <p className="text-[11px] text-slate-600 truncate mt-0.5">
-                  {persona.lastMessageSnippet}
-                </p>
-              </div>
-
-              {/* ONLY Video Call Button */}
-              <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              {/* ONLY Video Call Button: always visible on touch screens, revealed on hover/focus with a pointer */}
+              <div className="flex items-center transition-opacity shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-within:opacity-100">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStartVideoCall(persona);
-                  }}
+                  onClick={() => onStartVideoCall(persona)}
+                  aria-label={`Start video call with ${persona.fullName}`}
                   className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all active:scale-95"
                   title={`Start Video Call with ${persona.name}`}
                 >
@@ -270,16 +279,16 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
                   <span className="text-[10px]">Video Call</span>
                 </button>
               </div>
-            </div>
+            </li>
           );
         })}
 
         {filteredPersonas.length === 0 && (
-          <div className="p-8 text-center text-xs text-purple-400">
-            No tutors found matching this level.
-          </div>
+          <li className="p-8 text-center text-xs text-purple-600" role="status">
+            No tutors match your search or level filter.
+          </li>
         )}
-      </div>
+      </ul>
 
       {/* Sidebar Footer */}
       <div className="p-3 border-t border-purple-100 bg-[#faf8ff] text-xs">

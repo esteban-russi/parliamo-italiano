@@ -13,7 +13,8 @@ import {
   Play,
   Pause,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ChevronLeft
 } from 'lucide-react';
 import { Persona, ChatMessage, DevSettings, CharacterSpeakingState } from '../types';
 import { PersonaBadge } from './PersonaBadge';
@@ -27,6 +28,8 @@ interface ChatInterfaceProps {
   onStartVideoCall: () => void;
   onOpenPersonaDetails: () => void;
   onOpenDevLab: () => void;
+  /** Returns to the contacts list on small screens; the button is hidden at lg and up. */
+  onBack?: () => void;
   isAiGenerating?: boolean;
 }
 
@@ -38,6 +41,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onStartVideoCall,
   onOpenPersonaDetails,
   onOpenDevLab,
+  onBack,
   isAiGenerating = false
 }) => {
   const [inputText, setInputText] = useState<string>('');
@@ -48,11 +52,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [speakingState, setSpeakingState] = useState<CharacterSpeakingState>('idle');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
   }, [messages, isAiGenerating]);
 
   useEffect(() => {
@@ -70,8 +76,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setInputText('');
   };
 
+  // Insert at the caret (replacing any selection) and keep typing focus in the composer
   const insertAccent = (char: string) => {
-    setInputText(prev => prev + char);
+    const input = inputRef.current;
+    const start = input?.selectionStart ?? inputText.length;
+    const end = input?.selectionEnd ?? inputText.length;
+    setInputText(inputText.slice(0, start) + char + inputText.slice(end));
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(start + char.length, start + char.length);
+    });
   };
 
   const handlePlayVoice = async (message: ChatMessage) => {
@@ -146,13 +160,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <span className="w-1/3 bg-red-500" />
       </div>
 
+      <h2 className="sr-only">Conversation with {persona.fullName}</h2>
+
       {/* Chat Top Bar */}
-      <header className="px-5 py-3.5 border-b border-purple-100 bg-white/95 backdrop-blur-md flex items-center justify-between z-10 shrink-0">
+      <header className="px-3 sm:px-5 py-3.5 border-b border-purple-100 bg-white/95 backdrop-blur-md flex items-center justify-between gap-2 z-10 shrink-0">
         
+        {/* Back to contacts (mobile / tablet only) */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="lg:hidden -ml-1 p-2 rounded-xl text-purple-700 hover:bg-purple-100 transition-colors shrink-0"
+            title="Back to tutors"
+            aria-label="Back to tutors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Left: Persona identity */}
-        <div 
+        <button
+          type="button"
           onClick={onOpenPersonaDetails}
-          className="flex items-center gap-3 cursor-pointer group transition-opacity"
+          aria-label={`View ${persona.fullName}'s profile`}
+          className="flex items-center gap-3 cursor-pointer group transition-opacity min-w-0 flex-1 text-left rounded-2xl"
         >
           <PersonaBadge
             persona={persona}
@@ -160,31 +190,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             speakingState={speakingState}
           />
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-purple-950 font-friendly group-hover:text-purple-700 transition-colors">
+              <span className="text-base font-bold text-purple-950 font-friendly group-hover:text-purple-700 transition-colors truncate">
                 {persona.fullName}
-              </h2>
+              </span>
               <span className="text-[10px] text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-mono font-bold border border-purple-200">
                 {persona.cefrLevel}
               </span>
             </div>
-            <div className="text-xs text-purple-600/80 flex items-center gap-1.5">
-              <span>{persona.city}</span>
+            <div className="text-xs text-purple-600/80 flex items-center gap-1.5 min-w-0">
+              <span className="shrink-0">{persona.city}</span>
               <span aria-hidden="true">·</span>
-              <span className="text-slate-600 font-medium">
+              <span className="text-slate-600 font-medium truncate">
                 {persona.role}
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Right: Actions (Only Video Call button, standard phone call removed) */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           
           {/* Translation Global Toggle */}
           <button
             onClick={() => setShowAllTranslations(!showAllTranslations)}
+            aria-pressed={showAllTranslations}
             className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-colors ${
               showAllTranslations
                 ? 'bg-purple-100/80 text-purple-800 border-purple-300 font-bold'
@@ -211,11 +242,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {/* ONLY VIDEO CALL BUTTON (Standard voice call removed as requested) */}
           <button
             onClick={onStartVideoCall}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition-transform active:scale-95"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition-transform active:scale-95"
             title="Start Interactive Video Call"
+            aria-label={`Start video call with ${persona.fullName}`}
           >
             <Video className="w-4 h-4" />
-            <span className="font-friendly">Video Call</span>
+            <span className="font-friendly hidden sm:inline">Video Call</span>
           </button>
 
           {/* Info Details Modal */}
@@ -223,6 +255,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onClick={onOpenPersonaDetails}
             className="p-2 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors"
             title="Tutor details & bio"
+            aria-label={`${persona.fullName}: details and bio`}
           >
             <Info className="w-4 h-4" />
           </button>
@@ -231,7 +264,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </header>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <div
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label={`Messages with ${persona.name}`}
+      >
         
         {/* Cultural Welcome Note with Italian Tricolore touch */}
         <div className="max-w-md mx-auto my-2 text-center p-4 rounded-3xl bg-white border border-purple-200/80 shadow-xs text-purple-950 text-xs relative overflow-hidden">
@@ -282,6 +321,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                           : (isUser ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200')
                       }`}
                       title="Listen to voice message"
+                      aria-label={isPlaying ? 'Stop voice message' : 'Play voice message'}
                     >
                       {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                     </button>
@@ -292,7 +332,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <span className={`w-1 rounded-full ${isPlaying ? 'bg-purple-500 animate-wave-4' : (isUser ? 'bg-white/70 h-5' : 'bg-purple-300 h-5')}`} />
                       <span className={`w-1 rounded-full ${isPlaying ? 'bg-purple-500 animate-wave-5' : (isUser ? 'bg-white/70 h-3' : 'bg-purple-300 h-3')}`} />
                     </div>
-                    <span className={`text-[10px] font-mono-data ${isUser ? 'text-white/80' : 'text-purple-400'}`}>
+                    <span className={`text-[10px] font-mono-data ${isUser ? 'text-white/80' : 'text-purple-600'}`}>
                       {message.audioDuration || '0:05'}
                     </span>
                   </div>
@@ -317,6 +357,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <div className="mt-2.5 pt-2 border-t border-purple-100">
                     <button
                       onClick={() => setExpandedGrammarId(isGrammarExpanded ? null : message.id)}
+                      aria-expanded={isGrammarExpanded}
+                      aria-controls={`notes-${message.id}`}
                       className="flex items-center gap-1 text-[11px] text-purple-700 font-bold hover:text-purple-900 transition-colors"
                     >
                       <BookOpen className="w-3.5 h-3.5 text-purple-600" />
@@ -325,7 +367,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </button>
 
                     {isGrammarExpanded && (
-                      <div className="mt-2 space-y-1.5 bg-purple-50/70 p-3 rounded-2xl border border-purple-200/80 text-[11px] animate-in fade-in-50">
+                      <div id={`notes-${message.id}`} className="mt-2 space-y-1.5 bg-purple-50/70 p-3 rounded-2xl border border-purple-200/80 text-[11px] animate-in fade-in-50">
                         {message.grammarNotes.map((note, idx) => (
                           <div key={idx} className="pb-1 border-b border-purple-200/50 last:border-0 last:pb-0 text-purple-950">
                             <span className="font-bold text-purple-800">
@@ -341,7 +383,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                 {/* Message Timestamp & Audio Play Button */}
                 <div className={`mt-2 flex items-center justify-between gap-3 text-[10px] ${
-                  isUser ? 'text-white/70' : 'text-purple-400'
+                  isUser ? 'text-white/85' : 'text-purple-600'
                 }`}>
                   <span className="font-mono-data">{message.timestamp}</span>
 
@@ -350,6 +392,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       onClick={() => handlePlayVoice(message)}
                       className="hover:text-purple-700 p-0.5 rounded transition-colors text-purple-500"
                       title="Listen to Italian pronunciation"
+                      aria-label={isPlaying ? 'Stop pronunciation' : 'Listen to Italian pronunciation'}
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </button>
@@ -362,8 +405,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {/* AI Generating Indicator */}
         {isAiGenerating && (
-          <div className="flex items-center gap-2 p-3 bg-white border border-purple-200 rounded-2xl max-w-xs shadow-xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-ping" />
+          <div className="flex items-center gap-2 p-3 bg-white border border-purple-200 rounded-2xl max-w-xs shadow-xs" role="status">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-ping" aria-hidden="true" />
             <span className="text-xs text-purple-900 font-semibold font-friendly">
               {persona.name} is crafting a reply with Gemini AI...
             </span>
@@ -374,7 +417,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Quick Italian Accents & Starter Prompts Toolbar */}
-      <div className="px-5 py-2.5 border-t border-purple-100 bg-white shrink-0">
+      <div className="px-3 sm:px-5 py-2.5 border-t border-purple-100 bg-white shrink-0">
         
         {/* Suggested Quick Starters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none text-xs">
@@ -400,27 +443,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {/* Accents Bar */}
         <div className="flex items-center justify-between text-xs pt-1.5 border-t border-purple-100/60">
-          <div className="flex items-center gap-1 text-purple-600">
-            <span className="text-[10px] uppercase font-mono mr-1 text-purple-400 font-bold">Accents:</span>
+          <div className="flex items-center gap-1 text-purple-600 overflow-x-auto scrollbar-none">
+            <span className="text-[10px] uppercase font-mono mr-1 text-purple-600 font-bold shrink-0">Accents:</span>
             {['à', 'è', 'é', 'ì', 'ò', 'ù', '€', '«', '»'].map((char) => (
               <button
                 key={char}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => insertAccent(char)}
-                className="w-5 h-5 rounded-lg hover:bg-purple-100 hover:text-purple-900 text-purple-800 font-bold flex items-center justify-center transition-colors"
+                aria-label={`Insert ${char}`}
+                className="w-7 h-7 sm:w-5 sm:h-5 shrink-0 rounded-lg hover:bg-purple-100 hover:text-purple-900 text-purple-800 font-bold flex items-center justify-center transition-colors"
               >
                 {char}
               </button>
             ))}
           </div>
 
-          <span className="text-[10px] text-purple-400">
+          <span className="hidden sm:inline text-[10px] text-purple-600 shrink-0">
             Press Enter to send
           </span>
         </div>
       </div>
 
       {/* Input Composer */}
-      <div className="p-4 border-t border-purple-100 bg-white shrink-0">
+      <div className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-purple-100 bg-white shrink-0">
         <div className="flex items-center gap-2.5">
           
           {/* Microphone recording button */}
@@ -432,12 +477,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 : 'bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-200'
             }`}
             title={isRecordingMic ? 'Listening to microphone... Click to stop' : 'Speak Italian into microphone'}
+            aria-label={isRecordingMic ? 'Stop dictation' : 'Dictate in Italian'}
+            aria-pressed={isRecordingMic}
           >
             {isRecordingMic ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
 
           {/* Text Input */}
           <input
+            ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -445,7 +493,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               if (e.key === 'Enter') handleSend();
             }}
             placeholder={`Type a message in Italian to ${persona.name}...`}
-            className="flex-1 bg-purple-50/50 border border-purple-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
+            aria-label={`Message ${persona.name} in Italian`}
+            className="flex-1 bg-purple-50/50 border border-purple-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-purple-950 placeholder-slate-500 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
           />
 
           {/* Send Button */}
@@ -454,6 +503,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             disabled={!inputText.trim()}
             className="w-11 h-11 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-40 text-white font-bold flex items-center justify-center transition-transform active:scale-95 shadow-md shadow-purple-500/20"
             title="Send message"
+            aria-label="Send message"
           >
             <Send className="w-4 h-4" />
           </button>
