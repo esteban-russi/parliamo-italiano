@@ -323,7 +323,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       <span className={`w-1 rounded-full ${isPlaying ? 'bg-purple-500 animate-wave-4' : (isUser ? 'bg-white/70 h-5' : 'bg-purple-300 h-5')}`} />
                       <span className={`w-1 rounded-full ${isPlaying ? 'bg-purple-500 animate-wave-5' : (isUser ? 'bg-white/70 h-3' : 'bg-purple-300 h-3')}`} />
                     </div>
-                    <span className={`text-[10px] font-mono-data ${isUser ? 'text-white/80' : 'text-purple-400'}`}>
+                    <span className={`text-[10px] font-mono-data ${isUser ? 'text-white/80' : 'text-purple-600'}`}>
                       {message.audioDuration || '0:05'}
                     </span>
                   </div>
@@ -374,7 +374,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                 {/* Message Timestamp & Audio Play Button */}
                 <div className={`mt-2 flex items-center justify-between gap-3 text-[10px] ${
-                  isUser ? 'text-white/70' : 'text-purple-400'
+                  isUser ? 'text-white/85' : 'text-purple-600'
                 }`}>
                   <span className="font-mono-data">{message.timestamp}</span>
 
@@ -435,7 +435,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {/* Accents Bar */}
         <div className="flex items-center justify-between text-xs pt-1.5 border-t border-purple-100/60">
           <div className="flex items-center gap-1 text-purple-600 overflow-x-auto scrollbar-none">
-            <span className="text-[10px] uppercase font-mono mr-1 text-purple-400 font-bold shrink-0">Accents:</span>
+            <span className="text-[10px] uppercase font-mono mr-1 text-purple-600 font-bold shrink-0">Accents:</span>
             {['à', 'è', 'é', 'ì', 'ò', 'ù', '€', '«', '»'].map((char) => (
               <button
                 key={char}
@@ -448,7 +448,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             ))}
           </div>
 
-          <span className="hidden sm:inline text-[10px] text-purple-400 shrink-0">
+          <span className="hidden sm:inline text-[10px] text-purple-600 shrink-0">
             Press Enter to send
           </span>
         </div>
@@ -483,7 +483,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             }}
             placeholder={`Type a message in Italian to ${persona.name}...`}
             aria-label={`Message ${persona.name} in Italian`}
-            className="flex-1 bg-purple-50/50 border border-purple-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
+            className="flex-1 bg-purple-50/50 border border-purple-200 rounded-2xl px-4 py-2.5 text-xs sm:text-sm text-purple-950 placeholder-slate-500 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
           />
 
           {/* Send Button */}

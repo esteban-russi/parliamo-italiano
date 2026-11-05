@@ -132,7 +132,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tutor, city, or topic..."
             aria-label="Search tutors by name, city, or topic"
-            className="w-full bg-white border border-purple-200/80 rounded-2xl pl-9 pr-3 py-2 text-xs text-purple-950 placeholder-purple-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all shadow-2xs"
+            className="w-full bg-white border border-purple-200/80 rounded-2xl pl-9 pr-3 py-2 text-xs text-purple-950 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all shadow-2xs"
           />
         </div>
       </div>
@@ -144,7 +144,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
             <span>Cultural Espresso</span>
           </span>
-          <span className="text-[10px] text-purple-400">Audio snippets</span>
+          <span className="text-[10px] text-purple-600">Audio snippets</span>
         </div>
 
         <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
@@ -249,7 +249,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
                         {persona.cefrLevel}
                       </span>
                     </div>
-                    <span className="text-[10px] text-purple-400 font-mono-data shrink-0">
+                    <span className="text-[10px] text-purple-600 font-mono-data shrink-0">
                       {persona.lastMessageTime}
                     </span>
                   </div>
