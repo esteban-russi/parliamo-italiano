@@ -13,7 +13,8 @@ import {
   Play,
   Pause,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ChevronLeft
 } from 'lucide-react';
 import { Persona, ChatMessage, DevSettings, CharacterSpeakingState } from '../types';
 import { PersonaBadge } from './PersonaBadge';
@@ -27,6 +28,8 @@ interface ChatInterfaceProps {
   onStartVideoCall: () => void;
   onOpenPersonaDetails: () => void;
   onOpenDevLab: () => void;
+  /** Returns to the contacts list on small screens; the button is hidden at lg and up. */
+  onBack?: () => void;
   isAiGenerating?: boolean;
 }
 
@@ -38,6 +41,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onStartVideoCall,
   onOpenPersonaDetails,
   onOpenDevLab,
+  onBack,
   isAiGenerating = false
 }) => {
   const [inputText, setInputText] = useState<string>('');
@@ -147,12 +151,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Chat Top Bar */}
-      <header className="px-5 py-3.5 border-b border-purple-100 bg-white/95 backdrop-blur-md flex items-center justify-between z-10 shrink-0">
+      <header className="px-3 sm:px-5 py-3.5 border-b border-purple-100 bg-white/95 backdrop-blur-md flex items-center justify-between gap-2 z-10 shrink-0">
         
+        {/* Back to contacts (mobile / tablet only) */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="lg:hidden -ml-1 p-2 rounded-xl text-purple-700 hover:bg-purple-100 transition-colors shrink-0"
+            title="Back to tutors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Left: Persona identity */}
         <div 
           onClick={onOpenPersonaDetails}
-          className="flex items-center gap-3 cursor-pointer group transition-opacity"
+          className="flex items-center gap-3 cursor-pointer group transition-opacity min-w-0 flex-1"
         >
           <PersonaBadge
             persona={persona}
@@ -160,19 +175,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             speakingState={speakingState}
           />
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-purple-950 font-friendly group-hover:text-purple-700 transition-colors">
+              <h2 className="text-base font-bold text-purple-950 font-friendly group-hover:text-purple-700 transition-colors truncate">
                 {persona.fullName}
               </h2>
               <span className="text-[10px] text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full font-mono font-bold border border-purple-200">
                 {persona.cefrLevel}
               </span>
             </div>
-            <div className="text-xs text-purple-600/80 flex items-center gap-1.5">
-              <span>{persona.city}</span>
+            <div className="text-xs text-purple-600/80 flex items-center gap-1.5 min-w-0">
+              <span className="shrink-0">{persona.city}</span>
               <span aria-hidden="true">·</span>
-              <span className="text-slate-600 font-medium">
+              <span className="text-slate-600 font-medium truncate">
                 {persona.role}
               </span>
             </div>
@@ -180,7 +195,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
 
         {/* Right: Actions (Only Video Call button, standard phone call removed) */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           
           {/* Translation Global Toggle */}
           <button
@@ -211,11 +226,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {/* ONLY VIDEO CALL BUTTON (Standard voice call removed as requested) */}
           <button
             onClick={onStartVideoCall}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition-transform active:scale-95"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 transition-transform active:scale-95"
             title="Start Interactive Video Call"
           >
             <Video className="w-4 h-4" />
-            <span className="font-friendly">Video Call</span>
+            <span className="font-friendly hidden sm:inline">Video Call</span>
           </button>
 
           {/* Info Details Modal */}

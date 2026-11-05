@@ -11,6 +11,8 @@ import { speechService } from './utils/speech';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'home' | 'studio'>('home');
+  // Below the lg breakpoint the studio shows one pane at a time (contacts or chat)
+  const [mobilePane, setMobilePane] = useState<'list' | 'chat'>('list');
   const [personas] = useState<Persona[]>(INITIAL_PERSONAS);
   const [selectedPersona, setSelectedPersona] = useState<Persona>(INITIAL_PERSONAS[0]);
   const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
@@ -146,40 +148,53 @@ export default function App() {
           personas={personas}
           onStartChatWith={(persona) => {
             setSelectedPersona(persona);
+            setMobilePane('chat');
             setCurrentView('studio');
           }}
           onStartVideoCallWith={(persona) => {
             setSelectedPersona(persona);
+            setMobilePane('chat');
             setCurrentView('studio');
             setActiveVideoCallPersona(persona);
           }}
-          onOpenStudio={() => setCurrentView('studio')}
+          onOpenStudio={() => {
+            setMobilePane('list');
+            setCurrentView('studio');
+          }}
           onOpenDevLab={() => setIsDevLabOpen(true)}
         />
       ) : (
         /* View 2: Studio / Social Messenger & Video Call Stage */
-        <div className="flex h-screen w-screen overflow-hidden bg-[#faf8ff]">
-          {/* Left Column: Social Media Contacts & Stories Feed */}
-          <SocialSidebar
-            personas={personas}
-            selectedPersona={selectedPersona}
-            onSelectPersona={(persona) => setSelectedPersona(persona)}
-            onStartVideoCall={(persona) => handleStartVideoCall(persona)}
-            onOpenDevLab={() => setIsDevLabOpen(true)}
-            onGoHome={() => setCurrentView('home')}
-          />
+        <div className="flex h-dvh w-full overflow-hidden bg-[#faf8ff]">
+          {/* Left Column: Social Media Contacts & Stories Feed (full screen on mobile) */}
+          <div className={`${mobilePane === 'chat' ? 'hidden' : 'flex'} lg:flex w-full lg:w-auto h-full shrink-0`}>
+            <SocialSidebar
+              personas={personas}
+              selectedPersona={selectedPersona}
+              onSelectPersona={(persona) => {
+                setSelectedPersona(persona);
+                setMobilePane('chat');
+              }}
+              onStartVideoCall={(persona) => handleStartVideoCall(persona)}
+              onOpenDevLab={() => setIsDevLabOpen(true)}
+              onGoHome={() => setCurrentView('home')}
+            />
+          </div>
 
-          {/* Middle Column: Conversational Italian Chat Interface */}
-          <ChatInterface
-            persona={selectedPersona}
-            messages={activeMessages}
-            devSettings={devSettings}
-            onSendMessage={handleSendMessage}
-            onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
-            onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
-            onOpenDevLab={() => setIsDevLabOpen(true)}
-            isAiGenerating={isAiGenerating}
-          />
+          {/* Middle Column: Conversational Italian Chat Interface (full screen on mobile) */}
+          <div className={`${mobilePane === 'list' ? 'hidden' : 'flex'} lg:flex flex-1 min-w-0 h-full`}>
+            <ChatInterface
+              persona={selectedPersona}
+              messages={activeMessages}
+              devSettings={devSettings}
+              onSendMessage={handleSendMessage}
+              onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
+              onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
+              onOpenDevLab={() => setIsDevLabOpen(true)}
+              onBack={() => setMobilePane('list')}
+              isAiGenerating={isAiGenerating}
+            />
+          </div>
         </div>
       )}
 
