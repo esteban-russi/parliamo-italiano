@@ -389,7 +389,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Quick Italian Accents & Starter Prompts Toolbar */}
-      <div className="px-5 py-2.5 border-t border-purple-100 bg-white shrink-0">
+      <div className="px-3 sm:px-5 py-2.5 border-t border-purple-100 bg-white shrink-0">
         
         {/* Suggested Quick Starters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none text-xs">
@@ -415,27 +415,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {/* Accents Bar */}
         <div className="flex items-center justify-between text-xs pt-1.5 border-t border-purple-100/60">
-          <div className="flex items-center gap-1 text-purple-600">
-            <span className="text-[10px] uppercase font-mono mr-1 text-purple-400 font-bold">Accents:</span>
+          <div className="flex items-center gap-1 text-purple-600 overflow-x-auto scrollbar-none">
+            <span className="text-[10px] uppercase font-mono mr-1 text-purple-400 font-bold shrink-0">Accents:</span>
             {['à', 'è', 'é', 'ì', 'ò', 'ù', '€', '«', '»'].map((char) => (
               <button
                 key={char}
                 onClick={() => insertAccent(char)}
-                className="w-5 h-5 rounded-lg hover:bg-purple-100 hover:text-purple-900 text-purple-800 font-bold flex items-center justify-center transition-colors"
+                className="w-7 h-7 sm:w-5 sm:h-5 shrink-0 rounded-lg hover:bg-purple-100 hover:text-purple-900 text-purple-800 font-bold flex items-center justify-center transition-colors"
               >
                 {char}
               </button>
             ))}
           </div>
 
-          <span className="text-[10px] text-purple-400">
+          <span className="hidden sm:inline text-[10px] text-purple-400 shrink-0">
             Press Enter to send
           </span>
         </div>
       </div>
 
       {/* Input Composer */}
-      <div className="p-4 border-t border-purple-100 bg-white shrink-0">
+      <div className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-purple-100 bg-white shrink-0">
         <div className="flex items-center gap-2.5">
           
           {/* Microphone recording button */}

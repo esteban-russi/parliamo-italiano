@@ -80,21 +80,21 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
 
       {/* Header Bar */}
       <div className="p-4 border-b border-purple-100/70 bg-[#faf8ff]">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={onGoHome}
-              className="text-2xl font-friendly font-extrabold tracking-tight text-purple-950 hover:text-purple-700 flex items-center gap-1.5 transition-colors text-left"
+              className="text-xl sm:text-2xl font-friendly font-extrabold tracking-tight text-purple-950 hover:text-purple-700 flex items-center gap-1.5 transition-colors text-left min-w-0"
               title="Torna alla Home"
             >
-              <span>Parliamo Italiano</span>
-              <span className="text-[11px] font-sans font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full border border-purple-200">
+              <span className="truncate">Parliamo Italiano</span>
+              <span className="hidden sm:inline text-[11px] font-sans font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full border border-purple-200">
                 Italiano AI
               </span>
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {onGoHome && (
               <button
                 onClick={onGoHome}
@@ -187,7 +187,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
       </div>
 
       {/* CEFR Level Filters */}
-      <div className="px-3 py-2 border-b border-purple-100/60 flex items-center gap-1 bg-white">
+      <div className="px-3 py-2 border-b border-purple-100/60 flex items-center gap-1 bg-white overflow-x-auto scrollbar-none">
         {[
           { id: 'all', label: 'All' },
           { id: 'A', label: 'A1-A2 Beginner' },
@@ -197,7 +197,7 @@ export const SocialSidebar: React.FC<SocialSidebarProps> = ({
           <button
             key={filter.id}
             onClick={() => setLevelFilter(filter.id)}
-            className={`px-3 py-1 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap ${
+            className={`px-3 py-1 text-[11px] font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
               levelFilter === filter.id
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'text-purple-700/70 hover:text-purple-950 hover:bg-purple-50'
