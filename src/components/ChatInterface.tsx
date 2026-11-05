@@ -56,7 +56,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const recognizerRef = useRef<any>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    messagesEndRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
   }, [messages, isAiGenerating]);
 
   useEffect(() => {
@@ -254,7 +255,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </header>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <div
+        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label={`Messages with ${persona.name}`}
+      >
         
         {/* Cultural Welcome Note with Italian Tricolore touch */}
         <div className="max-w-md mx-auto my-2 text-center p-4 rounded-3xl bg-white border border-purple-200/80 shadow-xs text-purple-950 text-xs relative overflow-hidden">
@@ -389,8 +396,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {/* AI Generating Indicator */}
         {isAiGenerating && (
-          <div className="flex items-center gap-2 p-3 bg-white border border-purple-200 rounded-2xl max-w-xs shadow-xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-ping" />
+          <div className="flex items-center gap-2 p-3 bg-white border border-purple-200 rounded-2xl max-w-xs shadow-xs" role="status">
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-ping" aria-hidden="true" />
             <span className="text-xs text-purple-900 font-semibold font-friendly">
               {persona.name} is crafting a reply with Gemini AI...
             </span>
