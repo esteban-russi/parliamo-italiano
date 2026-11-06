@@ -127,7 +127,10 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-purple-950/40 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-purple-950/40 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div
         ref={dialogRef}
         role="dialog"
