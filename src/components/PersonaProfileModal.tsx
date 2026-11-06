@@ -87,6 +87,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white transition-colors"
+            aria-label="Close profile"
           >
             <X className="w-4 h-4" />
           </button>
@@ -97,7 +98,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           
           {/* Native Saying Card */}
           <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200/70 relative">
-            <Quote className="w-5 h-5 text-purple-300 absolute top-3 right-3" />
+            <Quote className="w-5 h-5 text-purple-300 absolute top-3 right-3" aria-hidden="true" />
             <div className="text-[11px] uppercase tracking-wider text-purple-700 font-bold mb-1">
               Motto & Philosophy
             </div>
@@ -160,7 +161,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
               className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1.5 text-xs font-bold transition-colors shadow-xs disabled:opacity-60"
             >
               <Volume2 className="w-3.5 h-3.5" />
-              <span>{isPlayingAudio ? 'Playing voice...' : 'Listen to Voice'}</span>
+              <span aria-live="polite">{isPlayingAudio ? 'Playing voice...' : 'Listen to Voice'}</span>
             </button>
           </div>
 

@@ -166,6 +166,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
               onClick={handleResetDefaults}
               className="p-1.5 rounded-xl hover:bg-purple-100 text-purple-600 transition-colors"
               title="Reset to defaults"
+              aria-label="Reset settings to defaults"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -173,6 +174,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-xl hover:bg-purple-100 text-purple-600 transition-colors"
               title="Close drawer"
+              aria-label="Close Voice Lab"
             >
               <X className="w-4 h-4" />
             </button>
@@ -189,7 +191,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
               <span>Voice Model Provider</span>
             </div>
 
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 gap-2" role="group" aria-label="Voice model provider">
               {[
                 { 
                   id: 'gemini_live', 
@@ -229,6 +231,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                   <button
                     key={provider.id}
                     onClick={() => handleChange('voiceProvider', provider.id as VoiceProvider)}
+                    aria-pressed={isSelected}
                     className={`w-full text-left p-3 rounded-2xl border transition-all ${
                       isSelected
                         ? 'bg-purple-50/90 border-purple-500 text-purple-950 shadow-xs'
@@ -250,10 +253,11 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
 
           {/* SECTION 2: VOICE ID / PRESET */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-purple-900 font-friendly">
+            <label htmlFor="voice-lab-voice-id" className="block text-xs font-bold text-purple-900 font-friendly">
               Gemini Prebuilt Voice ID
             </label>
             <select
+              id="voice-lab-voice-id"
               value={localSettings.voiceId}
               onChange={(e) => handleChange('voiceId', e.target.value)}
               className="w-full bg-purple-50/60 border border-purple-200 rounded-2xl px-3 py-2 text-xs text-purple-950 focus:outline-none focus:border-purple-600 focus:bg-white"
@@ -274,11 +278,9 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                 <Play className="w-3.5 h-3.5" />
                 <span>{isTestingVoice ? 'Synthesizing audio...' : 'Test Gemini Server Voice Now'}</span>
               </button>
-              {testStatusMessage && (
-                <p className="text-[11px] text-purple-700 text-center mt-1.5 font-semibold animate-in fade-in">
-                  {testStatusMessage}
-                </p>
-              )}
+              <p className="text-[11px] text-purple-700 text-center mt-1.5 font-semibold min-h-[1em] empty:mt-0" role="status">
+                {testStatusMessage}
+              </p>
             </div>
           </div>
 
@@ -291,11 +293,13 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-purple-900 font-semibold">Speech Rate</span>
+                <label htmlFor="voice-lab-speech-rate" className="text-purple-900 font-semibold">Speech Rate</label>
                 <span className="font-mono text-purple-700 font-bold">{localSettings.speechRate.toFixed(2)}x</span>
               </div>
               <input
+                id="voice-lab-speech-rate"
                 type="range"
+                aria-valuetext={`${localSettings.speechRate.toFixed(2)} times speed`}
                 min="0.7"
                 max="1.3"
                 step="0.05"
@@ -303,18 +307,19 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                 onChange={(e) => handleChange('speechRate', parseFloat(e.target.value))}
                 className="w-full accent-purple-600 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-purple-400">
+              <div className="flex justify-between text-[10px] text-purple-600" aria-hidden="true">
                 <span>0.7x (Beginner)</span>
                 <span>1.0x (Standard)</span>
                 <span>1.3x (Native)</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Audio sampling rate">
               {(['16kHz', '24kHz', '48kHz'] as const).map(rate => (
                 <button
                   key={rate}
                   onClick={() => handleChange('audioSamplingRate', rate)}
+                  aria-pressed={localSettings.audioSamplingRate === rate}
                   className={`py-1.5 rounded-xl border text-center transition-colors text-xs font-bold ${
                     localSettings.audioSamplingRate === rate
                       ? 'bg-purple-100 border-purple-400 text-purple-800'
@@ -336,10 +341,11 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
 
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-purple-900 font-semibold">LLM Temperature (Creativity)</span>
+                <label htmlFor="voice-lab-temperature" className="text-purple-900 font-semibold">LLM Temperature (Creativity)</label>
                 <span className="font-mono text-purple-700 font-bold">{localSettings.temperature.toFixed(2)}</span>
               </div>
               <input
+                id="voice-lab-temperature"
                 type="range"
                 min="0.1"
                 max="1.3"
@@ -351,10 +357,10 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-purple-900 mb-1.5 font-friendly">
+              <div id="voice-lab-strictness" className="block text-xs font-bold text-purple-900 mb-1.5 font-friendly">
                 Grammar Correction Strictness
-              </label>
-              <div className="grid grid-cols-3 gap-2">
+              </div>
+              <div className="grid grid-cols-3 gap-2" role="group" aria-labelledby="voice-lab-strictness">
                 {[
                   { id: 'conversational', label: 'Casual' },
                   { id: 'tutor', label: 'Friendly Tutor' },
@@ -363,6 +369,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                   <button
                     key={s.id}
                     onClick={() => handleChange('grammarStrictness', s.id as 'conversational' | 'tutor' | 'strict')}
+                    aria-pressed={localSettings.grammarStrictness === s.id}
                     className={`py-1.5 rounded-xl border text-center text-xs transition-colors font-bold ${
                       localSettings.grammarStrictness === s.id
                         ? 'bg-purple-600 text-white shadow-xs'
@@ -388,7 +395,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                 className="text-[11px] text-purple-700 hover:text-purple-900 flex items-center gap-1 font-mono font-bold"
               >
                 {copiedPayload ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedPayload ? 'Copied' : 'Copy JSON'}</span>
+                <span aria-live="polite">{copiedPayload ? 'Copied' : 'Copy JSON'}</span>
               </button>
             </div>
             <pre className="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-[11px] font-mono-data text-emerald-400 overflow-x-auto max-h-40">
