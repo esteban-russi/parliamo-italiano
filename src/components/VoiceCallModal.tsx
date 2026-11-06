@@ -329,7 +329,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const isWaveActive = callStatus === 'connected' && !isMuted && speakingState !== 'thinking';
 
   const chip =
-    'flex items-center gap-1.5 px-3.5 py-2 rounded-full border-[1.5px] text-sm font-medium transition-colors';
+    'flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full border-[1.5px] text-sm font-medium whitespace-nowrap transition-colors';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm sm:p-5">
@@ -443,7 +443,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         </div>
 
         {/* Learning aids */}
-        <div className="shrink-0 flex items-center justify-center gap-2 px-4 pt-2 pb-5">
+        <div className="shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 pt-2 pb-5">
           <button
             type="button"
             onClick={() => setIsSlow(!isSlow)}
