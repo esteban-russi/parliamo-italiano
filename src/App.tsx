@@ -1,26 +1,36 @@
-import React, { useState } from 'react';
-import { EMMANUELE, INITIAL_MESSAGES } from './data/personas';
-import { Persona, ChatMessage, DevSettings } from './types';
+import React, { useMemo, useRef, useState } from 'react';
+import { EMMANUELE, INITIAL_MESSAGES, INITIAL_SAVED_PHRASES } from './data/personas';
+import { ChatMessage, DevSettings, GrammarNote, Persona, SavedPhrase } from './types';
 import { ChatInterface } from './components/ChatInterface';
 import { VideoCallModal } from './components/VideoCallModal';
 import { DevSettingsDrawer } from './components/DevSettingsDrawer';
 import { PersonaProfileModal } from './components/PersonaProfileModal';
+import { IconRail } from './components/IconRail';
+import { TopHeader } from './components/TopHeader';
+import { UtilityPanel } from './components/UtilityPanel';
+import { useDialog } from './hooks/useDialog';
 import { speechService } from './utils/speech';
+
+const LEARNER_INITIAL = 'E';
+
+const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 export default function App() {
   // Single tutor for now: Emmanuele the Roman
-  const selectedPersona = EMMANUELE;
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({
-    [EMMANUELE.id]: INITIAL_MESSAGES
-  });
+  const persona = EMMANUELE;
+  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [savedPhrases, setSavedPhrases] = useState<SavedPhrase[]>(INITIAL_SAVED_PHRASES);
   const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
-  
-  // Video Call State (Video-only as requested)
-  const [activeVideoCallPersona, setActiveVideoCallPersona] = useState<Persona | null>(null);
+  const [isCallOpen, setIsCallOpen] = useState<boolean>(false);
 
-  // Modals & Drawers
+  // Modals & drawers
   const [isDevLabOpen, setIsDevLabOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isNotebookDrawerOpen, setIsNotebookDrawerOpen] = useState<boolean>(false);
+
+  const notebookDrawerRef = useRef<HTMLDivElement>(null);
+  const notebookHeadingRef = useRef<HTMLHeadingElement>(null);
+  useDialog(notebookDrawerRef, isNotebookDrawerOpen, () => setIsNotebookDrawerOpen(false));
 
   // Experimental Dev Settings (Defaulting to real Gemini Live server TTS)
   const [devSettings, setDevSettings] = useState<DevSettings>({
@@ -38,25 +48,49 @@ export default function App() {
     apiMockLatencyMs: 200
   });
 
-  const activeMessages = messagesMap[selectedPersona.id] || [];
+  // Latest grammar tip from the tutor, featured in the notebook
+  const grammarHighlight = useMemo<GrammarNote | null>(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const notes = messages[i].grammarNotes;
+      if (messages[i].sender === 'persona' && notes && notes.length > 0) return notes[0];
+    }
+    return null;
+  }, [messages]);
+
+  // Share of words the learner produced in this conversation
+  const talkingShare = useMemo(() => {
+    let learner = 0;
+    let total = 0;
+    for (const m of messages) {
+      const words = countWords(m.text);
+      total += words;
+      if (m.sender === 'user') learner += words;
+    }
+    return total === 0 ? 0 : Math.round((learner / total) * 100);
+  }, [messages]);
+
+  const speakIfAutoPlay = (text: string) => {
+    if (!devSettings.autoPlayAudio) return;
+    speechService.speakSmart(text, {
+      provider: devSettings.voiceProvider,
+      voiceName: persona.voiceId,
+      gender: persona.voiceGender
+    });
+  };
 
   // Handle student sending message in chat with real server Gemini API integration
   const handleSendMessage = async (text: string) => {
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       sender: 'user',
-      personaId: selectedPersona.id,
+      personaId: persona.id,
       text,
-      translation: 'Message sent by student',
+      translation: '',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    const updated = [...activeMessages, userMsg];
-    setMessagesMap(prev => ({
-      ...prev,
-      [selectedPersona.id]: updated
-    }));
-
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setIsAiGenerating(true);
 
     try {
@@ -64,7 +98,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaPrompt: selectedPersona.personaPrompt,
+          personaPrompt: persona.personaPrompt,
           history: updated.slice(-6),
           userMessage: text,
           temperature: devSettings.temperature,
@@ -78,26 +112,14 @@ export default function App() {
           const aiMessage: ChatMessage = {
             id: `b-${Date.now()}`,
             sender: 'persona',
-            personaId: selectedPersona.id,
+            personaId: persona.id,
             text: data.text,
             translation: data.translation || '',
             grammarNotes: data.grammarNotes || [],
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
-
-          setMessagesMap(prev => ({
-            ...prev,
-            [selectedPersona.id]: [...(prev[selectedPersona.id] || []), aiMessage]
-          }));
-
-          if (devSettings.autoPlayAudio) {
-            speechService.speakSmart(aiMessage.text, {
-              provider: devSettings.voiceProvider,
-              voiceName: selectedPersona.voiceId,
-              gender: selectedPersona.voiceGender
-            });
-          }
-
+          setMessages(prev => [...prev, aiMessage]);
+          speakIfAutoPlay(aiMessage.text);
           setIsAiGenerating(false);
           return;
         }
@@ -108,76 +130,123 @@ export default function App() {
 
     // Local fallback generator if server is offline or quota reached
     setTimeout(() => {
-      const fallbackResponse = generatePersonaFallbackMessage(selectedPersona, text);
-      
-      setMessagesMap(prev => ({
-        ...prev,
-        [selectedPersona.id]: [...(prev[selectedPersona.id] || []), fallbackResponse]
-      }));
-
-      if (devSettings.autoPlayAudio) {
-        speechService.speakSmart(fallbackResponse.text, {
-          provider: devSettings.voiceProvider,
-          voiceName: selectedPersona.voiceId,
-          gender: selectedPersona.voiceGender
-        });
-      }
-
+      const fallbackResponse = generatePersonaFallbackMessage(persona, text);
+      setMessages(prev => [...prev, fallbackResponse]);
+      speakIfAutoPlay(fallbackResponse.text);
       setIsAiGenerating(false);
     }, 500);
   };
 
-  const handleStartVideoCall = (persona: Persona) => {
-    setActiveVideoCallPersona(persona);
+  const handleSavePhrase = (message: ChatMessage) => {
+    setSavedPhrases(prev =>
+      prev.some(p => p.id === message.id)
+        ? prev.filter(p => p.id !== message.id)
+        : [{ id: message.id, it: message.text, en: message.translation }, ...prev]
+    );
   };
 
-  const handleEndVideoCall = () => {
-    setActiveVideoCallPersona(null);
+  const openNotebook = () => {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      notebookHeadingRef.current?.focus();
+      notebookHeadingRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } else {
+      setIsNotebookDrawerOpen(true);
+    }
+  };
+
+  const startCall = () => {
+    setIsNotebookDrawerOpen(false);
+    setIsCallOpen(true);
+  };
+
+  const panelProps = {
+    persona,
+    grammarHighlight,
+    savedPhrases,
+    talkingShare,
+    onSwitchToVoice: startCall,
+    onOpenProfile: () => setIsProfileModalOpen(true),
+    onRemovePhrase: (id: string) => setSavedPhrases(prev => prev.filter(p => p.id !== id))
   };
 
   return (
-    <div className="min-h-screen w-full bg-canvas text-ink">
-      
-      <div className="flex h-dvh w-full overflow-hidden">
-        <ChatInterface
-          persona={selectedPersona}
-          messages={activeMessages}
-          devSettings={devSettings}
-          onSendMessage={handleSendMessage}
-          onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
-          onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
-          onOpenDevLab={() => setIsDevLabOpen(true)}
-          isAiGenerating={isAiGenerating}
+    <div className="h-dvh w-full flex overflow-hidden bg-canvas text-ink">
+      <IconRail
+        learnerInitial={LEARNER_INITIAL}
+        onOpenNotebook={openNotebook}
+        onOpenVoiceLab={() => setIsDevLabOpen(true)}
+      />
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <TopHeader
+          persona={persona}
+          learnerInitial={LEARNER_INITIAL}
+          mode={isCallOpen ? 'voice' : 'text'}
+          onSelectVoice={startCall}
+          onOpenNotebook={openNotebook}
         />
+
+        <div className="flex-1 min-h-0 flex gap-5 lg:pr-5 lg:pb-5">
+          <div id="chat" className="flex-1 min-w-0 flex">
+            <ChatInterface
+              persona={persona}
+              messages={messages}
+              devSettings={devSettings}
+              savedPhraseIds={savedPhrases.map(p => p.id)}
+              onSendMessage={handleSendMessage}
+              onSavePhrase={handleSavePhrase}
+              isAiGenerating={isAiGenerating}
+            />
+          </div>
+
+          <div className="hidden lg:block w-[360px] xl:w-[380px] shrink-0">
+            <UtilityPanel {...panelProps} notebookHeadingRef={notebookHeadingRef} />
+          </div>
+        </div>
       </div>
 
-      {/* Dedicated Video Call Modal (Visual Video Calling with Student Camera View) */}
-      {activeVideoCallPersona && (
+      {/* Notebook as a drawer below the lg breakpoint */}
+      {isNotebookDrawerOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 flex justify-end bg-ink/30 backdrop-blur-[2px]"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsNotebookDrawerOpen(false); }}
+        >
+          <div
+            ref={notebookDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tutor and notebook"
+            tabIndex={-1}
+            className="w-full max-w-[380px] h-full p-3 focus:outline-none"
+          >
+            <UtilityPanel {...panelProps} onClose={() => setIsNotebookDrawerOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      {isCallOpen && (
         <VideoCallModal
-          persona={activeVideoCallPersona}
+          persona={persona}
           devSettings={devSettings}
-          onEndCall={handleEndVideoCall}
+          onEndCall={() => setIsCallOpen(false)}
           onOpenDevSettings={() => setIsDevLabOpen(true)}
         />
       )}
 
-      {/* Experimental Dev Lab Drawer */}
       <DevSettingsDrawer
         isOpen={isDevLabOpen}
         onClose={() => setIsDevLabOpen(false)}
         settings={devSettings}
         onSaveSettings={(updated) => setDevSettings(updated)}
-        activePersonaName={selectedPersona.fullName}
+        activePersonaName={persona.fullName}
       />
 
-      {/* Persona Cultural Details Modal */}
       <PersonaProfileModal
-        persona={selectedPersona}
+        persona={persona}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
+        onStartVideoCall={startCall}
       />
-
     </div>
   );
 }
