@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { EMMANUELE, INITIAL_MESSAGES, INITIAL_SAVED_PHRASES } from './data/personas';
 import { ChatMessage, DevSettings, GrammarNote, Persona, SavedPhrase } from './types';
 import { ChatInterface } from './components/ChatInterface';
-import { VideoCallModal } from './components/VideoCallModal';
+import { VoiceCallModal } from './components/VoiceCallModal';
 import { DevSettingsDrawer } from './components/DevSettingsDrawer';
 import { PersonaProfileModal } from './components/PersonaProfileModal';
 import { IconRail } from './components/IconRail';
@@ -225,11 +225,10 @@ export default function App() {
       )}
 
       {isCallOpen && (
-        <VideoCallModal
+        <VoiceCallModal
           persona={persona}
           devSettings={devSettings}
           onEndCall={() => setIsCallOpen(false)}
-          onOpenDevSettings={() => setIsDevLabOpen(true)}
         />
       )}
 
