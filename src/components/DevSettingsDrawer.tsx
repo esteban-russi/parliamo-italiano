@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   X, 
   Sparkles, 
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { DevSettings, VoiceProvider } from '../types';
 import { speechService } from '../utils/speech';
+import { useDialog } from '../hooks/useDialog';
 
 interface DevSettingsDrawerProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
   const [copiedPayload, setCopiedPayload] = useState<boolean>(false);
   const [isTestingVoice, setIsTestingVoice] = useState<boolean>(false);
   const [testStatusMessage, setTestStatusMessage] = useState<string>('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(dialogRef, isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -125,7 +128,14 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-purple-950/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-white border-l border-purple-200 h-full flex flex-col shadow-2xl overflow-hidden">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="voice-lab-title"
+        tabIndex={-1}
+        className="w-full max-w-md bg-white border-l border-purple-200 h-full flex flex-col shadow-2xl overflow-hidden focus:outline-none"
+      >
         
         {/* Italian Tricolore Top Accent */}
         <div className="h-1 w-full flex">
@@ -141,7 +151,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
               <Sliders className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-purple-950 font-friendly tracking-tight flex items-center gap-2">
+              <h3 id="voice-lab-title" className="text-sm font-bold text-purple-950 font-friendly tracking-tight flex items-center gap-2">
                 Voice & Backend Lab
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-mono font-bold border border-purple-200">
                   SERVER LIVE

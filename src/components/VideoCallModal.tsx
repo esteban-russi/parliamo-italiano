@@ -17,6 +17,7 @@ import { Persona, CharacterSpeakingState, DevSettings } from '../types';
 import { PersonaBadge } from './PersonaBadge';
 import { speechService, createSpeechRecognizer } from '../utils/speech';
 import { ITALIAN_PRACTICE_PHRASES } from '../data/personas';
+import { useDialog } from '../hooks/useDialog';
 
 interface VideoCallModalProps {
   persona: Persona;
@@ -79,6 +80,10 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const silenceTimerRef = useRef<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
+
+  // Focus trap without Escape: hanging up stays an explicit action
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(dialogRef, true);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -361,7 +366,15 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-purple-950/75 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-200">
       
       {/* Video Call Shell */}
-      <div className="relative w-full max-w-2xl h-[92vh] max-h-[820px] bg-slate-950 border border-purple-500/30 rounded-[36px] overflow-hidden flex flex-col shadow-2xl text-white">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Live video call with ${persona.fullName}`}
+        tabIndex={-1}
+        data-autofocus
+        className="relative w-full max-w-2xl h-[92dvh] max-h-[820px] bg-slate-950 border border-purple-500/30 rounded-[36px] overflow-hidden flex flex-col shadow-2xl text-white focus:outline-none"
+      >
         
         {/* Italian Flag Tricolore Ribbon across top header */}
         <div className="h-1.5 w-full flex">

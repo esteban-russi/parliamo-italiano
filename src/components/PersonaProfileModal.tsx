@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   X, 
   MapPin, 
@@ -11,6 +11,7 @@ import {
 import { Persona } from '../types';
 import { PersonaBadge } from './PersonaBadge';
 import { speechService } from '../utils/speech';
+import { useDialog } from '../hooks/useDialog';
 
 interface PersonaProfileModalProps {
   persona: Persona;
@@ -26,6 +27,8 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
   onStartVideoCall
 }) => {
   const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(dialogRef, isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -42,7 +45,14 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-purple-950/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-white border border-purple-200 rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="persona-profile-title"
+        tabIndex={-1}
+        className="w-full max-w-lg bg-white border border-purple-200 rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] focus:outline-none"
+      >
         
         {/* Italian Tricolore Top Accent */}
         <div className="h-1.5 w-full flex">
@@ -61,7 +71,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
             />
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold tracking-tight font-friendly">{persona.fullName}</h3>
+                <h3 id="persona-profile-title" className="text-xl font-bold tracking-tight font-friendly">{persona.fullName}</h3>
                 <span className="text-xs bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono font-bold">
                   {persona.cefrLevel}
                 </span>
