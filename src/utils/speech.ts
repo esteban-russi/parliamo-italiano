@@ -2,6 +2,9 @@
  * Speech Service supporting real server-side Gemini 3.8 Flash TTS audio and fallback browser Web Speech API
  */
 
+/** Speed multiplier used when a learner asks the tutor to speak more slowly. */
+const SLOW_FACTOR = 0.8;
+
 class SpeechService {
   private synth: SpeechSynthesis | null = null;
   private currentAudioElement: HTMLAudioElement | null = null;
@@ -34,6 +37,8 @@ class SpeechService {
     text: string,
     options: {
       voiceName?: string;
+      /** Audio playback speed; 1 is natural. */
+      playbackRate?: number;
       onStart?: () => void;
       onEnd?: () => void;
       onError?: () => void;
@@ -62,6 +67,7 @@ class SpeechService {
 
       const audioSrc = `data:audio/wav;base64,${data.audioBase64}`;
       const audio = new Audio(audioSrc);
+      audio.playbackRate = options.playbackRate ?? 1;
       this.currentAudioElement = audio;
 
       audio.onplay = () => {
@@ -159,15 +165,22 @@ class SpeechService {
       provider: string;
       voiceName?: string;
       rate?: number;
+      /** Slow the voice down for learners (Gemini audio and browser speech). */
+      slow?: boolean;
       gender?: 'male' | 'female';
       onStart?: () => void;
       onEnd?: () => void;
       onError?: () => void;
     }
   ): Promise<void> {
+    if (options.slow) {
+      options = { ...options, rate: (options.rate || 0.95) * SLOW_FACTOR };
+    }
+
     if (options.provider === 'gemini_live') {
       const success = await this.speakWithGemini(text, {
         voiceName: options.voiceName,
+        playbackRate: options.slow ? SLOW_FACTOR : 1,
         onStart: options.onStart,
         onEnd: options.onEnd,
         onError: () => {
