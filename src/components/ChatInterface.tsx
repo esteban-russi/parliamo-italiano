@@ -180,7 +180,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             return (
               <div key={message.id} className="flex justify-end">
                 <div className="max-w-[85%] sm:max-w-[70%] px-5 py-3.5 rounded-[20px] rounded-br-md bg-mint-tint text-ink">
-                  <p className="font-serif text-[17px] sm:text-lg leading-snug">{message.text}</p>
+                  <p className="font-serif text-[17px] sm:text-[19px] leading-snug">{message.text}</p>
                 </div>
               </div>
             );
@@ -190,7 +190,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div key={message.id} className="flex items-start gap-3 sm:gap-4">
               <PersonaBadge persona={persona} size="sm" speakingState={isPlaying ? 'speaking' : 'idle'} className="mt-1" />
               <div className="max-w-[85%] sm:max-w-[70%] px-5 pt-4 pb-3 rounded-[20px] rounded-bl-md bg-cobalt-tint text-ink">
-                <p className="font-serif text-[17px] sm:text-lg leading-snug">{message.text}</p>
+                <p className="font-serif text-[17px] sm:text-[19px] leading-snug">{message.text}</p>
                 {showTranslation && (
                   <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">{message.translation}</p>
                 )}
