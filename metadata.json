@@ -1,6 +1,6 @@
 {
   "name": "Parliamo Italiano - Italian Conversational AI Studio",
-  "description": "Interactive conversational Italian platform with animated AI personas, voice call and chat interface, social contact feed, and experimental voice provider lab.",
+  "description": "Practise conversational Italian by chatting and calling Emmanuele, an AI tutor from Rome.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

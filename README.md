@@ -2,25 +2,35 @@
 
 Learn conversational Italian by talking to people, not flashcards.
 
-Parliamo Italiano is a web app where you practise Italian with five AI tutors, each with their own city, personality, interests and level. You can chat with them in writing or start a hands-free video call: speak into your microphone, and they answer out loud in natural Italian, with live bilingual subtitles and short grammar notes to help you learn from every reply.
+Parliamo Italiano is a web app where you practise Italian with an AI tutor. For now there is one: **Emmanuele the Roman**, a retired legionary who chats about daily life in Rome. You can write to him or switch to a hands-free voice call: speak into your microphone, and he answers out loud in natural Italian, with captions, translations and short grammar notes to help you learn from every reply.
 
-## Meet the tutors
+## Meet your tutor
 
-| Tutor | City | Who they are | Level | Talks about |
+| Tutor | City | Who he is | Level | Talks about |
 |---|---|---|---|---|
-| **Matteo** | Firenze | Barista and foodie guide | A1-A2 | Coffee, ordering at restaurants, weather, Florence city walks |
-| **Nonna Rosa** | Napoli | Master of traditional Italian cooking | A2-B1 | Family recipes, fresh pasta, childhood stories, Italian holidays |
-| **Sofia** | Roma | Art historian and museum curator | B1-B2 | Art, museums, Roman architecture, Italian cinema, travel |
-| **Giulia** | Bologna | Indie musician and linguistics student | B1-B2 | Indie music, everyday slang, student life, backpacking |
-| **Marco** | Milano | Product designer and tech entrepreneur | B2-C1 | Work and startups, design, sustainability, aperitivo in the Navigli |
+| **Emmanuele il Romano** | Roma | Retired legionary | A2-B1 | Daily life in Rome, work and routines, food and markets, Roman history |
 
-Each tutor has a hand-written persona prompt, a native saying, a sample greeting and their own Gemini voice, so conversations feel different depending on who you call.
+Emmanuele has a hand-written persona prompt, a native saying, a sample greeting, his own Gemini voice (Charon) and two portrait expressions (resting and speaking).
+
+## Design
+
+The dashboard has three columns: a 72px icon rail, the chat workspace, and a utility panel with the tutor's profile, the notebook (latest grammar tip and saved phrases) and how much of the talking you did. Colours are Tailwind theme tokens in `src/index.css`:
+
+| Token | Hex | Used for |
+|---|---|---|
+| `ink` | `#1B1725` | Text and headings |
+| `cobalt` | `#256EFF` | Brand, primary actions, tutor bubbles (`cobalt-tint`) |
+| `mint` | `#3DDC97` | Your bubbles (`mint-tint`), grammar card, mic, progress |
+| `coral` | `#FF495C` | Your badge, saved phrases and quick replies (`coral-tint`) |
+| `canvas` | `#FCFCFC` | Page background |
+
+Italian text is set in Fraunces; the interface uses Inter.
 
 ## Features
 
-- **Chat with a tutor.** Every reply comes in Italian with an English translation and 1 to 3 notes on vocabulary, verbs, idioms, grammar or culture.
-- **Hands-free video calls.** Speech recognition (`it-IT`) listens while you talk, so there is no send button. The tutor thinks, then speaks back.
-- **Live bilingual subtitles.** Follow each line of the call in Italian, with an optional English translation.
+- **Chat with Emmanuele.** Every reply comes in Italian with an English translation and 1 to 3 notes on vocabulary, verbs, idioms, grammar or culture. Listen to any line, hide its translation, or save it to your notebook.
+- **Hands-free voice calls.** Speech recognition (`it-IT`) listens while you talk, so there is no send button. The tutor thinks, then speaks back. Ask him to go slower, repeat himself, or suggest something to say.
+- **Captions.** Follow each line of the call in Italian with an English translation.
 - **Natural voices.** Replies are spoken with Gemini text-to-speech. If it is unavailable, the app falls back to the browser's built-in Italian voice.
 - **Adjustable tutoring.** A settings drawer lets you choose how strictly mistakes are corrected (conversational, tutor or strict), how much regional slang to use, speech rate, subtitles, auto-play and a custom system prompt.
 
@@ -78,16 +88,19 @@ Speech recognition relies on the browser's Web Speech API, so voice calls work b
 ```
 ├── server.ts                  # Express server: /api/chat, /api/tts, /api/health, Vite/static serving
 ├── src/
-│   ├── App.tsx                # App state and view routing
+│   ├── App.tsx                # App state and dashboard layout
+│   ├── assets/emmanuele/      # Tutor portraits (resting and speaking)
 │   ├── components/
-│   │   ├── HomePage.tsx       # Landing page and tutor gallery
-│   │   ├── SocialSidebar.tsx  # Contact list of tutors
-│   │   ├── ChatInterface.tsx  # Text chat with translations and grammar notes
-│   │   ├── VideoCallModal.tsx # Hands-free voice/video call with subtitles
+│   │   ├── IconRail.tsx       # Left navigation rail
+│   │   ├── TopHeader.tsx      # Brand, conversation title, Text/Voice switch
+│   │   ├── ChatInterface.tsx  # Chat bubbles, quick replies and composer
+│   │   ├── UtilityPanel.tsx   # Tutor profile, notebook and talking share
+│   │   ├── VoiceCallModal.tsx # Hands-free voice call with captions
 │   │   ├── DevSettingsDrawer.tsx
 │   │   ├── PersonaProfileModal.tsx
-│   │   └── PersonaBadge.tsx
-│   ├── data/personas.ts       # Tutor personas, prompts and starter messages
+│   │   ├── PersonaBadge.tsx
+│   │   └── UserBadge.tsx
+│   ├── data/personas.ts       # Emmanuele's persona, starter message and saved phrases
 │   ├── utils/speech.ts        # Gemini TTS playback, browser TTS fallback, speech recognition
 │   └── types/index.ts
 └── index.html

@@ -1,34 +1,41 @@
-import React, { useState } from 'react';
-import { INITIAL_PERSONAS, INITIAL_MESSAGES } from './data/personas';
-import { Persona, ChatMessage, DevSettings } from './types';
-import { HomePage } from './components/HomePage';
-import { SocialSidebar } from './components/SocialSidebar';
+import React, { useMemo, useRef, useState } from 'react';
+import { EMMANUELE, INITIAL_MESSAGES, INITIAL_SAVED_PHRASES } from './data/personas';
+import { ChatMessage, DevSettings, GrammarNote, Persona, SavedPhrase } from './types';
 import { ChatInterface } from './components/ChatInterface';
-import { VideoCallModal } from './components/VideoCallModal';
+import { VoiceCallModal } from './components/VoiceCallModal';
 import { DevSettingsDrawer } from './components/DevSettingsDrawer';
 import { PersonaProfileModal } from './components/PersonaProfileModal';
+import { IconRail } from './components/IconRail';
+import { TopHeader } from './components/TopHeader';
+import { UtilityPanel } from './components/UtilityPanel';
+import { useDialog } from './hooks/useDialog';
 import { speechService } from './utils/speech';
 
-export default function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'studio'>('home');
-  // Below the lg breakpoint the studio shows one pane at a time (contacts or chat)
-  const [mobilePane, setMobilePane] = useState<'list' | 'chat'>('list');
-  const [personas] = useState<Persona[]>(INITIAL_PERSONAS);
-  const [selectedPersona, setSelectedPersona] = useState<Persona>(INITIAL_PERSONAS[0]);
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
-  const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
-  
-  // Video Call State (Video-only as requested)
-  const [activeVideoCallPersona, setActiveVideoCallPersona] = useState<Persona | null>(null);
+const LEARNER_INITIAL = 'E';
 
-  // Modals & Drawers
+const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+export default function App() {
+  // Single tutor for now: Emmanuele the Roman
+  const persona = EMMANUELE;
+  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const [savedPhrases, setSavedPhrases] = useState<SavedPhrase[]>(INITIAL_SAVED_PHRASES);
+  const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
+  const [isCallOpen, setIsCallOpen] = useState<boolean>(false);
+
+  // Modals & drawers
   const [isDevLabOpen, setIsDevLabOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isNotebookDrawerOpen, setIsNotebookDrawerOpen] = useState<boolean>(false);
+
+  const notebookDrawerRef = useRef<HTMLDivElement>(null);
+  const notebookHeadingRef = useRef<HTMLHeadingElement>(null);
+  useDialog(notebookDrawerRef, isNotebookDrawerOpen, () => setIsNotebookDrawerOpen(false));
 
   // Experimental Dev Settings (Defaulting to real Gemini Live server TTS)
   const [devSettings, setDevSettings] = useState<DevSettings>({
     voiceProvider: 'gemini_live',
-    voiceId: 'Fenrir',
+    voiceId: EMMANUELE.voiceId,
     temperature: 0.7,
     speechRate: 0.95,
     audioSamplingRate: '24kHz',
@@ -41,25 +48,49 @@ export default function App() {
     apiMockLatencyMs: 200
   });
 
-  const activeMessages = messagesMap[selectedPersona.id] || [];
+  // Latest grammar tip from the tutor, featured in the notebook
+  const grammarHighlight = useMemo<GrammarNote | null>(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const notes = messages[i].grammarNotes;
+      if (messages[i].sender === 'persona' && notes && notes.length > 0) return notes[0];
+    }
+    return null;
+  }, [messages]);
+
+  // Share of words the learner produced in this conversation
+  const talkingShare = useMemo(() => {
+    let learner = 0;
+    let total = 0;
+    for (const m of messages) {
+      const words = countWords(m.text);
+      total += words;
+      if (m.sender === 'user') learner += words;
+    }
+    return total === 0 ? 0 : Math.round((learner / total) * 100);
+  }, [messages]);
+
+  const speakIfAutoPlay = (text: string) => {
+    if (!devSettings.autoPlayAudio) return;
+    speechService.speakSmart(text, {
+      provider: devSettings.voiceProvider,
+      voiceName: persona.voiceId,
+      gender: persona.voiceGender
+    });
+  };
 
   // Handle student sending message in chat with real server Gemini API integration
   const handleSendMessage = async (text: string) => {
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       sender: 'user',
-      personaId: selectedPersona.id,
+      personaId: persona.id,
       text,
-      translation: 'Message sent by student',
+      translation: '',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    const updated = [...activeMessages, userMsg];
-    setMessagesMap(prev => ({
-      ...prev,
-      [selectedPersona.id]: updated
-    }));
-
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setIsAiGenerating(true);
 
     try {
@@ -67,7 +98,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaPrompt: selectedPersona.personaPrompt,
+          personaPrompt: persona.personaPrompt,
           history: updated.slice(-6),
           userMessage: text,
           temperature: devSettings.temperature,
@@ -81,26 +112,14 @@ export default function App() {
           const aiMessage: ChatMessage = {
             id: `b-${Date.now()}`,
             sender: 'persona',
-            personaId: selectedPersona.id,
+            personaId: persona.id,
             text: data.text,
             translation: data.translation || '',
             grammarNotes: data.grammarNotes || [],
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
-
-          setMessagesMap(prev => ({
-            ...prev,
-            [selectedPersona.id]: [...(prev[selectedPersona.id] || []), aiMessage]
-          }));
-
-          if (devSettings.autoPlayAudio) {
-            speechService.speakSmart(aiMessage.text, {
-              provider: devSettings.voiceProvider,
-              voiceName: selectedPersona.voiceId,
-              gender: selectedPersona.voiceGender
-            });
-          }
-
+          setMessages(prev => [...prev, aiMessage]);
+          speakIfAutoPlay(aiMessage.text);
           setIsAiGenerating(false);
           return;
         }
@@ -111,120 +130,122 @@ export default function App() {
 
     // Local fallback generator if server is offline or quota reached
     setTimeout(() => {
-      const fallbackResponse = generatePersonaFallbackMessage(selectedPersona, text);
-      
-      setMessagesMap(prev => ({
-        ...prev,
-        [selectedPersona.id]: [...(prev[selectedPersona.id] || []), fallbackResponse]
-      }));
-
-      if (devSettings.autoPlayAudio) {
-        speechService.speakSmart(fallbackResponse.text, {
-          provider: devSettings.voiceProvider,
-          voiceName: selectedPersona.voiceId,
-          gender: selectedPersona.voiceGender
-        });
-      }
-
+      const fallbackResponse = generatePersonaFallbackMessage(persona, text);
+      setMessages(prev => [...prev, fallbackResponse]);
+      speakIfAutoPlay(fallbackResponse.text);
       setIsAiGenerating(false);
     }, 500);
   };
 
-  const handleStartVideoCall = (persona: Persona) => {
-    setSelectedPersona(persona);
-    setActiveVideoCallPersona(persona);
+  const handleSavePhrase = (message: ChatMessage) => {
+    setSavedPhrases(prev =>
+      prev.some(p => p.id === message.id)
+        ? prev.filter(p => p.id !== message.id)
+        : [{ id: message.id, it: message.text, en: message.translation }, ...prev]
+    );
   };
 
-  const handleEndVideoCall = () => {
-    setActiveVideoCallPersona(null);
+  const openNotebook = () => {
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      notebookHeadingRef.current?.focus();
+      notebookHeadingRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } else {
+      setIsNotebookDrawerOpen(true);
+    }
+  };
+
+  const startCall = () => {
+    setIsNotebookDrawerOpen(false);
+    setIsCallOpen(true);
+  };
+
+  const panelProps = {
+    persona,
+    grammarHighlight,
+    savedPhrases,
+    talkingShare,
+    onSwitchToVoice: startCall,
+    onOpenProfile: () => setIsProfileModalOpen(true),
+    onRemovePhrase: (id: string) => setSavedPhrases(prev => prev.filter(p => p.id !== id))
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#faf8ff] font-friendly text-purple-950">
-      
-      {/* View 1: Home Page */}
-      {currentView === 'home' ? (
-        <HomePage
-          personas={personas}
-          onStartChatWith={(persona) => {
-            setSelectedPersona(persona);
-            setMobilePane('chat');
-            setCurrentView('studio');
-          }}
-          onStartVideoCallWith={(persona) => {
-            setSelectedPersona(persona);
-            setMobilePane('chat');
-            setCurrentView('studio');
-            setActiveVideoCallPersona(persona);
-          }}
-          onOpenStudio={() => {
-            setMobilePane('list');
-            setCurrentView('studio');
-          }}
-          onOpenDevLab={() => setIsDevLabOpen(true)}
+    <div className="h-dvh w-full flex overflow-hidden bg-canvas text-ink">
+      <IconRail
+        learnerInitial={LEARNER_INITIAL}
+        onOpenNotebook={openNotebook}
+        onOpenVoiceLab={() => setIsDevLabOpen(true)}
+      />
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <TopHeader
+          persona={persona}
+          learnerInitial={LEARNER_INITIAL}
+          mode={isCallOpen ? 'voice' : 'text'}
+          onSelectVoice={startCall}
+          onOpenNotebook={openNotebook}
         />
-      ) : (
-        /* View 2: Studio / Social Messenger & Video Call Stage */
-        <div className="flex h-dvh w-full overflow-hidden bg-[#faf8ff]">
-          {/* Left Column: Social Media Contacts & Stories Feed (full screen on mobile) */}
-          <div className={`${mobilePane === 'chat' ? 'hidden' : 'flex'} lg:flex w-full lg:w-auto h-full shrink-0`}>
-            <SocialSidebar
-              personas={personas}
-              selectedPersona={selectedPersona}
-              onSelectPersona={(persona) => {
-                setSelectedPersona(persona);
-                setMobilePane('chat');
-              }}
-              onStartVideoCall={(persona) => handleStartVideoCall(persona)}
-              onOpenDevLab={() => setIsDevLabOpen(true)}
-              onGoHome={() => setCurrentView('home')}
+
+        <div className="flex-1 min-h-0 flex gap-5 lg:pr-5 lg:pb-5">
+          <div id="chat" className="flex-1 min-w-0 flex">
+            <ChatInterface
+              persona={persona}
+              messages={messages}
+              devSettings={devSettings}
+              savedPhraseIds={savedPhrases.map(p => p.id)}
+              onSendMessage={handleSendMessage}
+              onSavePhrase={handleSavePhrase}
+              isAiGenerating={isAiGenerating}
             />
           </div>
 
-          {/* Middle Column: Conversational Italian Chat Interface (full screen on mobile) */}
-          <div className={`${mobilePane === 'list' ? 'hidden' : 'flex'} lg:flex flex-1 min-w-0 h-full`}>
-            <ChatInterface
-              persona={selectedPersona}
-              messages={activeMessages}
-              devSettings={devSettings}
-              onSendMessage={handleSendMessage}
-              onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
-              onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
-              onOpenDevLab={() => setIsDevLabOpen(true)}
-              onBack={() => setMobilePane('list')}
-              isAiGenerating={isAiGenerating}
-            />
+          <div className="hidden lg:block w-[360px] xl:w-[380px] shrink-0">
+            <UtilityPanel {...panelProps} notebookHeadingRef={notebookHeadingRef} />
+          </div>
+        </div>
+      </div>
+
+      {/* Notebook as a drawer below the lg breakpoint */}
+      {isNotebookDrawerOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 flex justify-end bg-ink/30 backdrop-blur-[2px]"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsNotebookDrawerOpen(false); }}
+        >
+          <div
+            ref={notebookDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tutor and notebook"
+            tabIndex={-1}
+            className="w-full max-w-[380px] h-full p-3 focus:outline-none"
+          >
+            <UtilityPanel {...panelProps} onClose={() => setIsNotebookDrawerOpen(false)} />
           </div>
         </div>
       )}
 
-      {/* Dedicated Video Call Modal (Visual Video Calling with Student Camera View) */}
-      {activeVideoCallPersona && (
-        <VideoCallModal
-          persona={activeVideoCallPersona}
+      {isCallOpen && (
+        <VoiceCallModal
+          persona={persona}
           devSettings={devSettings}
-          onEndCall={handleEndVideoCall}
-          onOpenDevSettings={() => setIsDevLabOpen(true)}
+          onEndCall={() => setIsCallOpen(false)}
         />
       )}
 
-      {/* Experimental Dev Lab Drawer */}
       <DevSettingsDrawer
         isOpen={isDevLabOpen}
         onClose={() => setIsDevLabOpen(false)}
         settings={devSettings}
         onSaveSettings={(updated) => setDevSettings(updated)}
-        activePersonaName={selectedPersona.fullName}
+        activePersonaName={persona.fullName}
       />
 
-      {/* Persona Cultural Details Modal */}
       <PersonaProfileModal
-        persona={selectedPersona}
+        persona={persona}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
+        onStartVideoCall={startCall}
       />
-
     </div>
   );
 }
@@ -233,61 +254,33 @@ export default function App() {
 function generatePersonaFallbackMessage(persona: Persona, userText: string): ChatMessage {
   const lower = userText.toLowerCase();
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const base = { id: `b-${Date.now()}`, sender: 'persona' as const, personaId: persona.id, timestamp: time };
 
-  if (persona.id === 'matteo') {
-    if (lower.includes('caffè') || lower.includes('ordinare') || lower.includes('bar')) {
-      return {
-        id: `b-${Date.now()}`,
-        sender: 'persona',
-        personaId: 'matteo',
-        text: 'A Firenze diciamo: "Prendo un caffè al volo, grazie!". "Al volo" significa fare qualcosa in fretta. Vuoi provare a usarlo?',
-        translation: 'In Florence we say: "I\'ll take a quick coffee on the fly, thanks!". "Al volo" means doing something quickly. Would you like to try using it?',
-        grammarNotes: [
-          {
-            wordOrPhrase: 'Al volo',
-            explanation: 'Italian idiom meaning "on the fly / quickly / in a rush".',
-            category: 'idiom'
-          },
-          {
-            wordOrPhrase: 'Prendo',
-            explanation: 'Present tense of prendere (to take), used when ordering.',
-            category: 'verb'
-          }
-        ],
-        timestamp: time
-      };
-    }
-
+  if (lower.includes('lavoro') || lower.includes('ufficio') || lower.includes('lavori')) {
     return {
-      id: `b-${Date.now()}`,
-      sender: 'persona',
-      personaId: 'matteo',
-      text: 'Bravissimo! Mi fa sempre piacere chiacchierare in video e chat. Ti va se ti spiego come descrivere la colazione tipica italiana?',
-      translation: 'Very good! It\'s always a pleasure to chat on video and text. How about I explain how to describe a typical Italian breakfast?',
+      ...base,
+      text: 'Interessante! E ti piace il tuo lavoro?',
+      translation: 'Interesting! And do you like your job?',
       grammarNotes: [
         {
-          wordOrPhrase: 'chiacchierare',
-          explanation: 'To chat / have a friendly conversation.',
-          category: 'verb'
+          wordOrPhrase: 'ti piace',
+          explanation: 'Literally "is it pleasing to you". Use piace for one thing, piacciono for several.',
+          category: 'grammar'
         }
-      ],
-      timestamp: time
+      ]
     };
   }
 
   return {
-    id: `b-${Date.now()}`,
-    sender: 'persona',
-    personaId: persona.id,
-    text: `Che bella frase! In videochiamata ti esprimi con grande naturalezza. Come posso aiutarti oggi?`,
-    translation: `What a nice sentence! On video call you express yourself with great natural ease. How can I help you today?`,
+    ...base,
+    text: 'Bravo! Parli già molto bene. Raccontami: cosa fai di solito nel fine settimana?',
+    translation: 'Well done! You already speak very well. Tell me: what do you usually do at the weekend?',
     grammarNotes: [
       {
-        wordOrPhrase: 'naturalezza',
-        explanation: 'Naturalness and ease in spoken expression.',
+        wordOrPhrase: 'di solito',
+        explanation: 'Means "usually". It goes before or after the verb: "di solito vado", "vado di solito".',
         category: 'vocabulary'
       }
-    ],
-    timestamp: time
+    ]
   };
 }
