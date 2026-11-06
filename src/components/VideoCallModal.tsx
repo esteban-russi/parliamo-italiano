@@ -413,6 +413,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
               onClick={handleHangup}
               className="p-1.5 rounded-full hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
               title="End live call"
+              aria-label="End call"
             >
               <X className="w-5 h-5" />
             </button>
@@ -456,7 +457,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
             </div>
 
             {/* Hands-free Voice Status Badge */}
-            <div className="mt-3 text-xs font-semibold">
+            <div className="mt-3 text-xs font-semibold" role="status" aria-live="polite">
               {speakingState === 'speaking' ? (
                 <span className="text-purple-300 flex items-center gap-2 justify-center px-4 py-1.5 rounded-full bg-purple-950/80 border border-purple-500/40 shadow-sm">
                   <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-ping" />
@@ -483,7 +484,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
             {/* Live user transcript while speaking */}
             {liveUserTranscript && (
               <div className="mt-2 text-xs text-emerald-200 bg-emerald-950/60 px-3.5 py-1 rounded-xl border border-emerald-500/30 max-w-sm truncate animate-in fade-in">
-                🎙️ You: &ldquo;{liveUserTranscript}&rdquo;
+                <span aria-hidden="true">🎙️ </span>You: &ldquo;{liveUserTranscript}&rdquo;
               </div>
             )}
           </div>
@@ -493,6 +494,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
             {isVideoOn && !cameraError ? (
               <video
                 ref={userVideoRef}
+                aria-label="Your camera preview"
                 autoPlay
                 playsInline
                 muted
@@ -533,7 +535,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
           {/* Conversation Starters Modal / Assistant */}
           {showPromptAssistance && (
-            <div className="w-full max-w-lg bg-purple-950/95 border border-purple-400/40 rounded-2xl p-4 my-1 text-left text-xs shadow-xl animate-in slide-in-from-bottom-2">
+            <div id="call-practice-ideas" className="w-full max-w-lg bg-purple-950/95 border border-purple-400/40 rounded-2xl p-4 my-1 text-left text-xs shadow-xl animate-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-2 pb-1 border-b border-purple-800">
                 <span className="font-bold text-purple-200 flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-purple-300" /> 
@@ -542,6 +544,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
                 <button
                   onClick={() => setShowPromptAssistance(false)}
                   className="text-purple-300 hover:text-white"
+                  aria-label="Close conversation ideas"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -573,6 +576,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
           <div className="flex items-center justify-around mb-3 text-slate-300">
             <button
               onClick={() => setShowSubtitles(!showSubtitles)}
+              aria-pressed={showSubtitles}
               className={`flex flex-col items-center gap-1 text-[10px] transition-colors ${
                 showSubtitles ? 'text-purple-300 font-semibold' : 'hover:text-white'
               }`}
@@ -588,6 +592,8 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
             <button
               onClick={() => setShowPromptAssistance(!showPromptAssistance)}
+              aria-expanded={showPromptAssistance}
+              aria-controls="call-practice-ideas"
               className={`flex flex-col items-center gap-1 text-[10px] transition-colors ${
                 showPromptAssistance ? 'text-purple-300 font-semibold' : 'hover:text-white'
               }`}
@@ -614,6 +620,8 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
                   : 'bg-purple-900/60 border-purple-400/40 text-purple-100 hover:bg-purple-800'
               }`}
               title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+              aria-label="Mute microphone"
+              aria-pressed={isMuted}
             >
               {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               <span className="text-[9px] mt-0.5">{isMuted ? 'Muted' : 'Mute'}</span>
@@ -628,6 +636,8 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
                   : 'bg-purple-600 border-purple-300 text-white hover:bg-purple-500 shadow-purple-600/40'
               }`}
               title={isVideoOn ? 'Disable camera' : 'Enable camera'}
+              aria-label="Camera"
+              aria-pressed={isVideoOn}
             >
               {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
               <span className="text-[9px] mt-0.5">{isVideoOn ? 'Camera ON' : 'Camera OFF'}</span>
@@ -642,6 +652,8 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
                   : 'bg-purple-900/60 border-purple-400/40 text-purple-100 hover:bg-purple-800'
               }`}
               title={isSpeakerOn ? 'Turn off speaker audio' : 'Turn on speaker audio'}
+              aria-label="Tutor audio"
+              aria-pressed={isSpeakerOn}
             >
               {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
               <span className="text-[9px] mt-0.5">{isSpeakerOn ? 'Audio ON' : 'Audio OFF'}</span>
@@ -652,6 +664,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
               onClick={handleHangup}
               className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 text-white flex flex-col items-center justify-center transition-transform active:scale-90 shadow-lg shadow-red-600/40 border-2 border-white"
               title="End live video call"
+              aria-label="End call"
             >
               <PhoneOff className="w-6 h-6" />
               <span className="text-[9px] font-semibold mt-0.5">End Call</span>
