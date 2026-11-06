@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_PERSONAS, INITIAL_MESSAGES } from './data/personas';
+import { EMMANUELE, INITIAL_MESSAGES } from './data/personas';
 import { Persona, ChatMessage, DevSettings } from './types';
-import { HomePage } from './components/HomePage';
-import { SocialSidebar } from './components/SocialSidebar';
 import { ChatInterface } from './components/ChatInterface';
 import { VideoCallModal } from './components/VideoCallModal';
 import { DevSettingsDrawer } from './components/DevSettingsDrawer';
@@ -10,12 +8,11 @@ import { PersonaProfileModal } from './components/PersonaProfileModal';
 import { speechService } from './utils/speech';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'studio'>('home');
-  // Below the lg breakpoint the studio shows one pane at a time (contacts or chat)
-  const [mobilePane, setMobilePane] = useState<'list' | 'chat'>('list');
-  const [personas] = useState<Persona[]>(INITIAL_PERSONAS);
-  const [selectedPersona, setSelectedPersona] = useState<Persona>(INITIAL_PERSONAS[0]);
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
+  // Single tutor for now: Emmanuele the Roman
+  const selectedPersona = EMMANUELE;
+  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({
+    [EMMANUELE.id]: INITIAL_MESSAGES
+  });
   const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
   
   // Video Call State (Video-only as requested)
@@ -28,7 +25,7 @@ export default function App() {
   // Experimental Dev Settings (Defaulting to real Gemini Live server TTS)
   const [devSettings, setDevSettings] = useState<DevSettings>({
     voiceProvider: 'gemini_live',
-    voiceId: 'Fenrir',
+    voiceId: EMMANUELE.voiceId,
     temperature: 0.7,
     speechRate: 0.95,
     audioSamplingRate: '24kHz',
@@ -131,7 +128,6 @@ export default function App() {
   };
 
   const handleStartVideoCall = (persona: Persona) => {
-    setSelectedPersona(persona);
     setActiveVideoCallPersona(persona);
   };
 
@@ -140,63 +136,20 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#faf8ff] font-friendly text-purple-950">
+    <div className="min-h-screen w-full bg-canvas text-ink">
       
-      {/* View 1: Home Page */}
-      {currentView === 'home' ? (
-        <HomePage
-          personas={personas}
-          onStartChatWith={(persona) => {
-            setSelectedPersona(persona);
-            setMobilePane('chat');
-            setCurrentView('studio');
-          }}
-          onStartVideoCallWith={(persona) => {
-            setSelectedPersona(persona);
-            setMobilePane('chat');
-            setCurrentView('studio');
-            setActiveVideoCallPersona(persona);
-          }}
-          onOpenStudio={() => {
-            setMobilePane('list');
-            setCurrentView('studio');
-          }}
+      <div className="flex h-dvh w-full overflow-hidden">
+        <ChatInterface
+          persona={selectedPersona}
+          messages={activeMessages}
+          devSettings={devSettings}
+          onSendMessage={handleSendMessage}
+          onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
+          onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
           onOpenDevLab={() => setIsDevLabOpen(true)}
+          isAiGenerating={isAiGenerating}
         />
-      ) : (
-        /* View 2: Studio / Social Messenger & Video Call Stage */
-        <div className="flex h-dvh w-full overflow-hidden bg-[#faf8ff]">
-          {/* Left Column: Social Media Contacts & Stories Feed (full screen on mobile) */}
-          <div className={`${mobilePane === 'chat' ? 'hidden' : 'flex'} lg:flex w-full lg:w-auto h-full shrink-0`}>
-            <SocialSidebar
-              personas={personas}
-              selectedPersona={selectedPersona}
-              onSelectPersona={(persona) => {
-                setSelectedPersona(persona);
-                setMobilePane('chat');
-              }}
-              onStartVideoCall={(persona) => handleStartVideoCall(persona)}
-              onOpenDevLab={() => setIsDevLabOpen(true)}
-              onGoHome={() => setCurrentView('home')}
-            />
-          </div>
-
-          {/* Middle Column: Conversational Italian Chat Interface (full screen on mobile) */}
-          <div className={`${mobilePane === 'list' ? 'hidden' : 'flex'} lg:flex flex-1 min-w-0 h-full`}>
-            <ChatInterface
-              persona={selectedPersona}
-              messages={activeMessages}
-              devSettings={devSettings}
-              onSendMessage={handleSendMessage}
-              onStartVideoCall={() => handleStartVideoCall(selectedPersona)}
-              onOpenPersonaDetails={() => setIsProfileModalOpen(true)}
-              onOpenDevLab={() => setIsDevLabOpen(true)}
-              onBack={() => setMobilePane('list')}
-              isAiGenerating={isAiGenerating}
-            />
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Dedicated Video Call Modal (Visual Video Calling with Student Camera View) */}
       {activeVideoCallPersona && (
@@ -233,61 +186,33 @@ export default function App() {
 function generatePersonaFallbackMessage(persona: Persona, userText: string): ChatMessage {
   const lower = userText.toLowerCase();
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const base = { id: `b-${Date.now()}`, sender: 'persona' as const, personaId: persona.id, timestamp: time };
 
-  if (persona.id === 'matteo') {
-    if (lower.includes('caffè') || lower.includes('ordinare') || lower.includes('bar')) {
-      return {
-        id: `b-${Date.now()}`,
-        sender: 'persona',
-        personaId: 'matteo',
-        text: 'A Firenze diciamo: "Prendo un caffè al volo, grazie!". "Al volo" significa fare qualcosa in fretta. Vuoi provare a usarlo?',
-        translation: 'In Florence we say: "I\'ll take a quick coffee on the fly, thanks!". "Al volo" means doing something quickly. Would you like to try using it?',
-        grammarNotes: [
-          {
-            wordOrPhrase: 'Al volo',
-            explanation: 'Italian idiom meaning "on the fly / quickly / in a rush".',
-            category: 'idiom'
-          },
-          {
-            wordOrPhrase: 'Prendo',
-            explanation: 'Present tense of prendere (to take), used when ordering.',
-            category: 'verb'
-          }
-        ],
-        timestamp: time
-      };
-    }
-
+  if (lower.includes('lavoro') || lower.includes('ufficio') || lower.includes('lavori')) {
     return {
-      id: `b-${Date.now()}`,
-      sender: 'persona',
-      personaId: 'matteo',
-      text: 'Bravissimo! Mi fa sempre piacere chiacchierare in video e chat. Ti va se ti spiego come descrivere la colazione tipica italiana?',
-      translation: 'Very good! It\'s always a pleasure to chat on video and text. How about I explain how to describe a typical Italian breakfast?',
+      ...base,
+      text: 'Interessante! E ti piace il tuo lavoro?',
+      translation: 'Interesting! And do you like your job?',
       grammarNotes: [
         {
-          wordOrPhrase: 'chiacchierare',
-          explanation: 'To chat / have a friendly conversation.',
-          category: 'verb'
+          wordOrPhrase: 'ti piace',
+          explanation: 'Literally "is it pleasing to you". Use piace for one thing, piacciono for several.',
+          category: 'grammar'
         }
-      ],
-      timestamp: time
+      ]
     };
   }
 
   return {
-    id: `b-${Date.now()}`,
-    sender: 'persona',
-    personaId: persona.id,
-    text: `Che bella frase! In videochiamata ti esprimi con grande naturalezza. Come posso aiutarti oggi?`,
-    translation: `What a nice sentence! On video call you express yourself with great natural ease. How can I help you today?`,
+    ...base,
+    text: 'Bravo! Parli già molto bene. Raccontami: cosa fai di solito nel fine settimana?',
+    translation: 'Well done! You already speak very well. Tell me: what do you usually do at the weekend?',
     grammarNotes: [
       {
-        wordOrPhrase: 'naturalezza',
-        explanation: 'Naturalness and ease in spoken expression.',
+        wordOrPhrase: 'di solito',
+        explanation: 'Means "usually". It goes before or after the verb: "di solito vado", "vado di solito".',
         category: 'vocabulary'
       }
-    ],
-    timestamp: time
+    ]
   };
 }

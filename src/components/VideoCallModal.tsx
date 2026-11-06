@@ -331,7 +331,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
         greetingStartedRef.current = true;
         handlePersonaSpeakRef.current(
           personaRef.current.sampleAudioText,
-          `Hello! Welcome to ${personaRef.current.city}. Let's chat in Italian!`
+          personaRef.current.sampleAudioTranslation
         );
       }
     }, 1800);
@@ -679,31 +679,18 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
   );
 };
 
-function generateCallFallback(persona: Persona, userText: string): { it: string; en: string } {
+function generateCallFallback(_persona: Persona, userText: string): { it: string; en: string } {
   const lower = userText.toLowerCase();
 
-  if (persona.id === 'matteo') {
-    if (lower.includes('caffè') || lower.includes('ordinare')) {
-      return {
-        it: 'Ti sento benissimo! A Firenze diciamo "Un espresso macchiato caldo, per favore". Prova a ripeterlo!',
-        en: 'I hear you very well! In Florence we say "A warm espresso macchiato, please". Try repeating it!'
-      };
-    }
+  if (lower.includes('lavoro') || lower.includes('ufficio')) {
     return {
-      it: 'Ottima pronuncia dal vivo! Hai un\'ottima intonazione. Vuoi provare a chiedermi della colazione tipica?',
-      en: 'Great live pronunciation! You have wonderful intonation. Want to try asking about a typical breakfast?'
-    };
-  }
-
-  if (persona.id === 'sofia') {
-    return {
-      it: 'Bravissimo! A Roma apprezziamo tanto chi parla con questa naturalezza in chiamata. Continua così!',
-      en: 'Well done! In Rome we really appreciate someone who speaks with this natural ease on call. Keep going!'
+      it: 'Ah, perfetto! Che tipo di lavoro fai?',
+      en: 'Ah, great! What kind of work do you do?'
     };
   }
 
   return {
-    it: 'Molto bene! Ricordati di cantare un po\' le vocali finali. In chiamata dal vivo stai migliorando tantissimo!',
-    en: 'Very good! Remember to emphasize the ending vowels. On live call you are improving so much!'
+    it: 'Molto bene! Ti sento benissimo. Continua, raccontami ancora!',
+    en: 'Very good! I can hear you perfectly. Go on, tell me more!'
   };
 }

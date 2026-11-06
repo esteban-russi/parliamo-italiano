@@ -33,8 +33,14 @@ export interface Persona {
   city: string;
   region: string;
   role: string;
-  avatarBg: string;
-  accentColor: string;
+  /** Short scene the tutor is in today, shown as a context tag. */
+  dailyContext: string;
+  avatar: {
+    /** Resting expression. */
+    idle: string;
+    /** Open-mouth expression shown while the tutor speaks. */
+    speaking: string;
+  };
   cefrLevel: CefrLevel;
   levelLabel: string;
   dialectSpecialty: string;
@@ -42,22 +48,19 @@ export interface Persona {
   topics: string[];
   nativeSaying: string;
   nativeSayingTranslation: string;
+  /** One-tap replies offered above the composer. */
+  quickReplies: string[];
   voiceId: string;
   voiceGender: 'male' | 'female';
-  isOnline: boolean;
-  unreadCount?: number;
-  lastMessageSnippet: string;
-  lastMessageTime: string;
-  avatarConfig: {
-    skinTone: string;
-    hairColor: string;
-    hairStyle: 'short-curls' | 'long-wavy' | 'neat-part' | 'bun-silver' | 'bob-modern';
-    facialFeatures?: 'beard-neat' | 'glasses-designer' | 'freckles' | 'earrings';
-    outfitColor: string;
-    accessoryText?: string;
-  };
   sampleAudioText: string;
+  sampleAudioTranslation: string;
   personaPrompt: string;
+}
+
+export interface SavedPhrase {
+  id: string;
+  it: string;
+  en: string;
 }
 
 export interface DevSettings {
