@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, Keyboard, Lightbulb, Mic, MicOff, PhoneOff, Repeat2, Snail, X } from 'lucide-react';
 import { Persona, CharacterSpeakingState, DevSettings } from '../types';
 import { PersonaBadge } from './PersonaBadge';
-import { speechService, createSpeechRecognizer } from '../utils/speech';
+import { speechService, createSpeechRecognizer, AudioRecorder, transcribeAudioBlob } from '../utils/speech';
 import { ITALIAN_PRACTICE_PHRASES } from '../data/personas';
 import { useDialog } from '../hooks/useDialog';
 
@@ -58,6 +58,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const silenceTimerRef = useRef<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
 
   // Focus trap without Escape: hanging up stays an explicit action
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -102,9 +104,13 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     setLiveUserTranscript('');
     activeTranscriptRef.current = '';
 
-    // Stop recognizer immediately so it does not capture the AI speaker audio
+    // Stop recognizer and audio recorder immediately so it does not capture the AI speaker audio
     if (recognizerRef.current) {
       try { recognizerRef.current.stop(); } catch { /* ignore */ }
+    }
+    if (audioRecorderRef.current) {
+      try { audioRecorderRef.current.cancel(); } catch { /* ignore */ }
+      audioRecorderRef.current = null;
     }
 
     const currentSec = Math.floor((Date.now() - startTimeRef.current) / 1000);
@@ -135,9 +141,13 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       silenceTimerRef.current = null;
     }
 
-    // Stop speech recognizer while thinking and preparing AI response
+    // Stop speech recognizer and audio recorder while thinking and preparing AI response
     if (recognizerRef.current) {
       try { recognizerRef.current.stop(); } catch { /* ignore */ }
+    }
+    if (audioRecorderRef.current) {
+      try { audioRecorderRef.current.cancel(); } catch { /* ignore */ }
+      audioRecorderRef.current = null;
     }
 
     setSpeakingState('thinking');
@@ -184,17 +194,71 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     handlePersonaSpeakRef.current(fallback.it, fallback.en);
   }, []);
 
-  // Continuous hands-free live speech recognition loop
+  // Continuous hands-free live speech recognition loop (Cloud STT / Browser STT)
   useEffect(() => {
     if (callStatus !== 'connected' || isMuted || speakingState !== 'listening') {
       if (recognizerRef.current) {
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
+      }
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.cancel();
+        audioRecorderRef.current = null;
       }
       return;
     }
 
     if (isAiSpeakingRef.current) return;
 
+    const useCloudStt = devSettingsRef.current.sttProvider === 'production_cloud';
+
+    if (useCloudStt) {
+      // Production Cloud STT pipeline with Voice Activity Detection (VAD)
+      const recorder = new AudioRecorder({
+        silenceThresholdMs: 1200,
+        rmsThreshold: 0.02,
+        onAudioLevel: (lvl) => {
+          if (lvl > 0.04 && !isAiSpeakingRef.current && !isTranscribing) {
+            setLiveUserTranscript((prev) => prev.startsWith('Trascrizione') ? prev : 'Ti ascolto…');
+          }
+        },
+        onSilenceDetected: async (blob) => {
+          if (isAiSpeakingRef.current) return;
+          try {
+            setSpeakingState('thinking');
+            setLiveUserTranscript('Trascrizione vocale GCP…');
+            setIsTranscribing(true);
+
+            const result = await transcribeAudioBlob(blob, 'it-IT');
+            const trimmed = result.transcript?.trim();
+
+            if (trimmed && !isAiSpeakingRef.current) {
+              processLiveUserSpeech(trimmed);
+            } else {
+              setSpeakingState('listening');
+              setLiveUserTranscript('');
+            }
+          } catch (err) {
+            console.warn('Cloud STT transcription failed:', err);
+            setSpeakingState('listening');
+            setLiveUserTranscript('');
+          } finally {
+            setIsTranscribing(false);
+          }
+        }
+      });
+
+      audioRecorderRef.current = recorder;
+      recorder.start().catch(err => console.warn('Could not start AudioRecorder in call:', err));
+
+      return () => {
+        if (audioRecorderRef.current) {
+          audioRecorderRef.current.cancel();
+          audioRecorderRef.current = null;
+        }
+      };
+    }
+
+    // Client-side Web Speech API loop
     const recognizer = createSpeechRecognizer(
       (transcript, isFinal) => {
         if (isAiSpeakingRef.current) return;
@@ -203,12 +267,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           setLiveUserTranscript(transcript);
           activeTranscriptRef.current = transcript;
 
-          // Clear previous silence timer
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
           }
 
-          // If speech recognizer signaled final phrase or 1300ms pause of silence, automatically send speech
           const timeoutMs = isFinal ? 600 : 1300;
           silenceTimerRef.current = window.setTimeout(() => {
             if (activeTranscriptRef.current.trim() && !isAiSpeakingRef.current) {
@@ -219,7 +281,6 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         }
       },
       () => {
-        // Recognition ended - restart if still connected and in listening mode
         if (callStatus === 'connected' && !isMuted && !isAiSpeakingRef.current && speakingState === 'listening') {
           try {
             recognizerRef.current?.start();
@@ -250,7 +311,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
       }
     };
-  }, [callStatus, isMuted, speakingState, processLiveUserSpeech]);
+  }, [callStatus, isMuted, speakingState, processLiveUserSpeech, isTranscribing]);
 
   // Connect call audio & lifecycle (Runs ONLY ONCE per call mount)
   useEffect(() => {
@@ -288,6 +349,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       if (recognizerRef.current) {
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
       }
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.cancel();
+        audioRecorderRef.current = null;
+      }
     };
   }, []); // Strictly empty dependency array so the call connects once!
 
@@ -296,6 +361,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     speechService.playHangupTone();
     if (timerRef.current) clearInterval(timerRef.current);
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.cancel();
+      audioRecorderRef.current = null;
+    }
     onEndCall();
   };
 
@@ -307,6 +376,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     setSpeakingState('speaking');
     if (recognizerRef.current) {
       try { recognizerRef.current.stop(); } catch { /* ignore */ }
+    }
+    if (audioRecorderRef.current) {
+      try { audioRecorderRef.current.cancel(); } catch { /* ignore */ }
+      audioRecorderRef.current = null;
     }
     speakAloud(last.text);
   };

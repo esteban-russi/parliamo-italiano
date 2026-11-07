@@ -10,9 +10,10 @@ import {
   Copy, 
   Check, 
   RotateCcw,
-  Play
+  Play,
+  Mic
 } from 'lucide-react';
-import { DevSettings, VoiceProvider } from '../types';
+import { DevSettings, VoiceProvider, SttProvider } from '../types';
 import { speechService } from '../utils/speech';
 import { EMMANUELE } from '../data/personas';
 import { useDialog } from '../hooks/useDialog';
@@ -51,12 +52,20 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
     setIsTestingVoice(true);
     setTestStatusMessage(
       localSettings.voiceProvider === 'gemini_live'
-        ? 'Calling Gemini 3.8 TTS server...'
-        : 'Local speech synthesis in progress...'
+        ? 'Calling Gemini TTS server...'
+        : localSettings.voiceProvider === 'gcp_cloud_tts'
+          ? 'Calling Google Cloud Text-to-Speech (Neural2)...'
+          : 'Local speech synthesis in progress...'
     );
 
+    const testText = localSettings.voiceProvider === 'gcp_cloud_tts'
+      ? 'Ciao! Questo è un test audio con sintesi vocale neurale di Google Cloud. Buona conversazione!'
+      : localSettings.voiceProvider === 'gemini_live'
+        ? 'Ciao! Questo è un test audio con sintesi vocale Gemini. Buona conversazione!'
+        : 'Ciao! Questo è un test audio con sintesi vocale locale del browser. Buona conversazione!';
+
     await speechService.speakSmart(
-      `Ciao! Questo è un test audio con sintesi vocale ${localSettings.voiceProvider === 'gemini_live' ? 'Gemini 3.8 Flash Lite TTS' : 'locale'}. Buona conversazione!`,
+      testText,
       {
         provider: localSettings.voiceProvider,
         voiceName: localSettings.voiceId,
@@ -192,10 +201,18 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
             <div className="grid grid-cols-1 gap-2" role="group" aria-label="Voice model provider">
               {[
                 { 
+                  id: 'gcp_cloud_tts', 
+                  name: 'Google Cloud Text-to-Speech (Neural2 / Journey)', 
+                  desc: 'High-fidelity Italian neural voices via @google-cloud/text-to-speech on GCP.', 
+                  badge: 'GCP CLOUD',
+                  badgeColor: 'bg-emerald-600 text-white font-bold',
+                  isLive: true
+                },
+                { 
                   id: 'gemini_live', 
-                  name: 'Google Gemini 3.8 Flash-Lite TTS (Server)', 
+                  name: 'Google Gemini Native Audio (Server)', 
                   desc: 'Server-side native audio synthesis via @google/genai.', 
-                  badge: 'SERVER LIVE',
+                  badge: 'GEMINI AUDIO',
                   badgeColor: 'bg-cobalt text-white font-bold',
                   isLive: true
                 },
@@ -252,7 +269,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
           {/* SECTION 2: VOICE ID / PRESET */}
           <div className="space-y-2">
             <label htmlFor="voice-lab-voice-id" className="block text-xs font-bold text-ink">
-              Gemini Prebuilt Voice ID
+              {localSettings.voiceProvider === 'gcp_cloud_tts' ? 'Google Cloud Neural2 / Journey Voice' : 'Gemini Prebuilt Voice ID'}
             </label>
             <select
               id="voice-lab-voice-id"
@@ -260,11 +277,24 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
               onChange={(e) => handleChange('voiceId', e.target.value)}
               className="w-full bg-cobalt-tint border border-line rounded-2xl px-3 py-2 text-xs text-ink focus:outline-none focus:border-cobalt focus:bg-surface"
             >
-              <option value="Charon">Charon · Deep & steady (Emmanuele)</option>
-              <option value="Fenrir">Fenrir · Warm, natural & reassuring</option>
-              <option value="Kore">Kore · Gentle & welcoming</option>
-              <option value="Puck">Puck · Lively, youthful & bright</option>
-              <option value="Zephyr">Zephyr · Neutral, clear & balanced</option>
+              {localSettings.voiceProvider === 'gcp_cloud_tts' ? (
+                <>
+                  <option value="it-IT-Neural2-C">it-IT-Neural2-C · Male Native Italian (Emmanuele)</option>
+                  <option value="it-IT-Neural2-A">it-IT-Neural2-A · Female Native Italian</option>
+                  <option value="it-IT-Journey-D">it-IT-Journey-D · Conversational Male</option>
+                  <option value="it-IT-Journey-F">it-IT-Journey-F · Conversational Female</option>
+                  <option value="it-IT-Wavenet-C">it-IT-Wavenet-C · Male Classic</option>
+                  <option value="it-IT-Wavenet-A">it-IT-Wavenet-A · Female Classic</option>
+                </>
+              ) : (
+                <>
+                  <option value="Charon">Charon · Deep & steady (Emmanuele)</option>
+                  <option value="Fenrir">Fenrir · Warm, natural & reassuring</option>
+                  <option value="Kore">Kore · Gentle & welcoming</option>
+                  <option value="Puck">Puck · Lively, youthful & bright</option>
+                  <option value="Zephyr">Zephyr · Neutral, clear & balanced</option>
+                </>
+              )}
             </select>
             
             <div className="pt-1">
@@ -327,6 +357,55 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
                   {rate}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* SECTION: VOICE INPUT (SPEECH-TO-TEXT) */}
+          <div className="space-y-3 pt-2 border-t border-line">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-ink uppercase tracking-wider">
+              <Mic className="w-3.5 h-3.5 text-cobalt" />
+              <span>Voice Input (STT) Pipeline</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2" role="group" aria-label="Speech to text provider">
+              {[
+                {
+                  id: 'production_cloud',
+                  name: 'Cloud Voice Pipeline (Production)',
+                  desc: 'Audio recorded with MediaRecorder, transcribed via GCP Speech & Gemini Multimodal. Cross-browser reliable.',
+                  badge: 'PRODUCTION READY',
+                  badgeColor: 'bg-cobalt text-white font-bold',
+                },
+                {
+                  id: 'browser_web_speech',
+                  name: 'Browser Web Speech API',
+                  desc: 'webkitSpeechRecognition. Instant zero-server preview (Chrome/Safari desktop).',
+                  badge: 'BROWSER',
+                  badgeColor: 'bg-stone-200 text-slate-800 font-semibold',
+                }
+              ].map(stt => {
+                const isSelected = localSettings.sttProvider === stt.id;
+                return (
+                  <button
+                    key={stt.id}
+                    onClick={() => handleChange('sttProvider', stt.id as SttProvider)}
+                    aria-pressed={isSelected}
+                    className={`w-full text-left p-3 rounded-2xl border transition-all ${
+                      isSelected
+                        ? 'bg-cobalt-tint border-cobalt text-ink shadow-xs'
+                        : 'bg-surface border-line hover:bg-cobalt-tint text-ink'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-ink">{stt.name}</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider ${stt.badgeColor}`}>
+                        {stt.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-muted mt-1">{stt.desc}</p>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

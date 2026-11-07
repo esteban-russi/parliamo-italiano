@@ -3,7 +3,7 @@ import { Bookmark, BookmarkCheck, Headphones, HelpCircle, Languages, Mic, Square
 import { Persona, ChatMessage, DevSettings } from '../types';
 import { PersonaBadge } from './PersonaBadge';
 import { ITALIAN_PRACTICE_PHRASES } from '../data/personas';
-import { speechService, createSpeechRecognizer } from '../utils/speech';
+import { speechService, createSpeechRecognizer, AudioRecorder, transcribeAudioBlob } from '../utils/speech';
 
 interface ChatInterfaceProps {
   persona: Persona;
@@ -31,6 +31,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [hiddenTranslations, setHiddenTranslations] = useState<Set<string>>(new Set());
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [isRecordingMic, setIsRecordingMic] = useState<boolean>(false);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +39,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const helpRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -128,12 +130,45 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     });
   };
 
-  const toggleMicRecording = () => {
+  const toggleMicRecording = async () => {
     if (isRecordingMic) {
+      if (audioRecorderRef.current) {
+        setIsTranscribing(true);
+        const blob = await audioRecorderRef.current.stop();
+        audioRecorderRef.current = null;
+        if (blob && blob.size > 0) {
+          try {
+            const { transcript } = await transcribeAudioBlob(blob, 'it-IT');
+            if (transcript && transcript.trim()) {
+              setInputText((prev) => (prev ? `${prev} ${transcript.trim()}` : transcript.trim()));
+            }
+          } catch (err) {
+            console.warn('Chat mic transcription failed:', err);
+          } finally {
+            setIsTranscribing(false);
+          }
+        } else {
+          setIsTranscribing(false);
+        }
+      }
       if (recognizerRef.current) {
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
       }
       setIsRecordingMic(false);
+      return;
+    }
+
+    // Start recording with Cloud STT (MediaRecorder) or Browser SpeechRecognition
+    const useCloud = devSettings.sttProvider === 'production_cloud';
+    if (useCloud) {
+      const recorder = new AudioRecorder();
+      audioRecorderRef.current = recorder;
+      const started = await recorder.start();
+      if (started) {
+        setIsRecordingMic(true);
+      } else {
+        inputRef.current?.focus();
+      }
       return;
     }
 
@@ -347,15 +382,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <button
               type="button"
               onClick={toggleMicRecording}
-              aria-label={isRecordingMic ? 'Stop dictation' : 'Dictate in Italian'}
+              disabled={isTranscribing}
+              aria-label={isTranscribing ? 'Transcribing…' : isRecordingMic ? 'Stop dictation' : 'Dictate in Italian'}
               aria-pressed={isRecordingMic}
-              title={isRecordingMic ? 'Listening… click to stop' : 'Dictate in Italian'}
-              className={`relative shrink-0 w-12 h-12 rounded-full bg-mint text-ink flex items-center justify-center hover:bg-[#35cf8b] transition-colors ${
+              title={isTranscribing ? 'Transcribing speech…' : isRecordingMic ? 'Listening… click to stop' : 'Dictate in Italian'}
+              className={`relative shrink-0 w-12 h-12 rounded-full ${
+                isTranscribing ? 'bg-cobalt-tint text-cobalt animate-pulse' : 'bg-mint text-ink hover:bg-[#35cf8b]'
+              } flex items-center justify-center transition-colors ${
                 isRecordingMic ? 'ring-4 ring-mint/30' : ''
-              }`}
+              } disabled:opacity-60`}
             >
               {isRecordingMic && <span className="absolute inset-0 rounded-full bg-mint/50 animate-ping" aria-hidden="true" />}
-              <Mic className="relative w-5 h-5" />
+              <Mic className={`relative w-5 h-5 ${isTranscribing ? 'animate-spin' : ''}`} />
             </button>
 
             <button
