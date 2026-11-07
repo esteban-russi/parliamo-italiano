@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { SpeechClient } from '@google-cloud/speech';
 
 dotenv.config();
 
@@ -12,24 +14,97 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' }));
+// Configuration
+const GCP_PROJECT = process.env.GCP_PROJECT;
+const GCP_REGION = process.env.GCP_REGION || 'europe-west2';
 
-// Initialize GoogleGenAI server client
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Split models: Chat / Pedagogical Tutor vs. Audio / TTS Generation
+const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.0-flash';
+
+app.use(express.json({ limit: '25mb' }));
+
+// Helper to create GoogleGenAI client (Vertex AI or Google AI Studio)
+function createGenAiClient(preferVertex: boolean) {
+  const options: Record<string, any> = {
+    httpOptions: {
+      headers: {
+        'User-Agent': 'parliamo-italiano-gcp',
+      },
     },
-  },
-});
+  };
 
-// Health check endpoint
+  if (preferVertex && GCP_PROJECT) {
+    options.vertexai = true;
+    options.project = GCP_PROJECT;
+    if (GCP_REGION && GCP_REGION !== 'global') {
+      options.location = GCP_REGION;
+    }
+  } else if (process.env.GEMINI_API_KEY) {
+    options.apiKey = process.env.GEMINI_API_KEY;
+  }
+
+  return new GoogleGenAI(options);
+}
+
+// Primary client (Vertex AI if GCP_PROJECT configured, otherwise API key)
+const primaryAi = createGenAiClient(Boolean(GCP_PROJECT));
+// Fallback client (Google AI Studio via GEMINI_API_KEY)
+const fallbackAi = (GCP_PROJECT && process.env.GEMINI_API_KEY) ? createGenAiClient(false) : null;
+
+// Google Cloud Text-to-Speech Client
+let cloudTtsClient: TextToSpeechClient | null = null;
+try {
+  cloudTtsClient = new TextToSpeechClient(
+    GCP_PROJECT ? { projectId: GCP_PROJECT } : {}
+  );
+} catch (err: any) {
+  console.warn('[GCP TTS] Could not initialize TextToSpeechClient:', err.message);
+}
+
+// Google Cloud Speech-to-Text Client
+let cloudSpeechClient: SpeechClient | null = null;
+try {
+  cloudSpeechClient = new SpeechClient(
+    GCP_PROJECT ? { projectId: GCP_PROJECT } : {}
+  );
+} catch (err: any) {
+  console.warn('[GCP STT] Could not initialize SpeechClient:', err.message);
+}
+
+// Robust execution wrapper with fallback to AI Studio if Vertex AI request fails
+async function generateContentWithFallback(requestConfig: any) {
+  try {
+    return await primaryAi.models.generateContent(requestConfig);
+  } catch (primaryErr: any) {
+    if (fallbackAi) {
+      console.warn('[GCP Fallback] Vertex AI request failed, retrying with Google AI Studio API key:', primaryErr.message);
+      return await fallbackAi.models.generateContent(requestConfig);
+    }
+    throw primaryErr;
+  }
+}
+
+// Health check endpoint with GCP & Model metadata
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    provider: 'gemini-3.8-flash-lite-tts',
+    models: {
+      chat: CHAT_MODEL,
+      tts: TTS_MODEL,
+    },
+    gcp: {
+      project: GCP_PROJECT || null,
+      region: GCP_REGION,
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+      hasGcpProject: Boolean(GCP_PROJECT),
+      clients: {
+        vertexAi: Boolean(GCP_PROJECT),
+        aiStudio: Boolean(process.env.GEMINI_API_KEY),
+        cloudTts: Boolean(cloudTtsClient),
+        cloudSpeech: Boolean(cloudSpeechClient),
+      }
+    }
   });
 });
 
@@ -42,9 +117,9 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Missing userMessage' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!GCP_PROJECT && !process.env.GEMINI_API_KEY) {
       return res.status(503).json({
-        error: 'GEMINI_API_KEY not configured',
+        error: 'Neither GCP_PROJECT nor GEMINI_API_KEY is configured',
         fallbackNeeded: true
       });
     }
@@ -85,8 +160,8 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido con la seguente struttura esat
       parts: [{ text: userMessage }]
     });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const response = await generateContentWithFallback({
+      model: CHAT_MODEL,
       contents,
       config: {
         systemInstruction,
@@ -121,42 +196,86 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido con la seguente struttura esat
 
     res.json(parsed);
   } catch (error: any) {
-    console.error('Gemini chat error:', error);
+    console.error('Chat generation error:', error);
     res.status(500).json({
-      error: error.message || 'Error communicating with Gemini',
+      error: error.message || 'Error communicating with AI model',
       fallbackNeeded: true
     });
   }
 });
 
-// Gemini Real Text-to-Speech (TTS) Endpoint
+// Text-to-Speech (TTS) Endpoint supporting both Google Cloud TTS & Gemini Native Audio
 app.post('/api/tts', async (req, res) => {
   try {
-    const { text, voiceName = 'Fenrir' } = req.body;
+    const { 
+      text, 
+      voiceName = 'Fenrir', 
+      provider = 'gemini_live',
+      rate = 1.0, 
+      pitch = 0.0,
+      gender = 'male' 
+    } = req.body;
 
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Text is required for TTS' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    // 1. Google Cloud Text-to-Speech (Neural2 / Journey voices)
+    const isCloudTtsRequested = provider === 'gcp_cloud_tts' || (typeof voiceName === 'string' && voiceName.startsWith('it-IT-'));
+    if (isCloudTtsRequested && cloudTtsClient) {
+      try {
+        const isFemale = gender === 'female' || voiceName.includes('Neural2-A') || voiceName.includes('Journey-F');
+        const targetVoice = voiceName && voiceName.startsWith('it-IT-') 
+          ? voiceName 
+          : (isFemale ? 'it-IT-Neural2-A' : 'it-IT-Neural2-C');
+
+        const [gcpResponse] = await cloudTtsClient.synthesizeSpeech({
+          input: { text },
+          voice: {
+            languageCode: 'it-IT',
+            name: targetVoice,
+            ssmlGender: (isFemale ? 'FEMALE' : 'MALE') as any,
+          },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            speakingRate: Math.min(Math.max(Number(rate) || 1.0, 0.25), 4.0),
+            pitch: Math.min(Math.max(Number(pitch) || 0.0, -20.0), 20.0),
+          },
+        });
+
+        if (gcpResponse.audioContent) {
+          const audioBase64 = Buffer.from(gcpResponse.audioContent as Uint8Array).toString('base64');
+          return res.json({
+            audioBase64,
+            mimeType: 'audio/mp3',
+            voiceUsed: targetVoice,
+            provider: 'gcp_cloud_tts'
+          });
+        }
+      } catch (cloudErr: any) {
+        console.warn('[GCP TTS] Google Cloud Text-to-Speech failed, falling back to Gemini TTS:', cloudErr.message);
+      }
+    }
+
+    // 2. Gemini Native Multimodal Audio Generation
+    if (!GCP_PROJECT && !process.env.GEMINI_API_KEY) {
       return res.status(503).json({
-        error: 'GEMINI_API_KEY not configured',
+        error: 'No AI credentials configured for Gemini TTS',
         fallbackToBrowser: true
       });
     }
 
-    // Supported Gemini 3.8 prebuilt voices: 'Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'
     const allowedVoices = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
     let selectedVoice = voiceName;
     if (!allowedVoices.includes(selectedVoice)) {
       selectedVoice = voiceName.includes('Kore') ? 'Kore' :
                       voiceName.includes('Puck') ? 'Puck' :
                       voiceName.includes('Charon') ? 'Charon' :
-                      voiceName.includes('Fenrir') ? 'Fenrir' : 'Fenrir';
+                      voiceName.includes('Zephyr') ? 'Zephyr' : 'Fenrir';
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash-lite-tts',
+    const response = await generateContentWithFallback({
+      model: TTS_MODEL,
       contents: [
         {
           role: 'user',
@@ -180,7 +299,6 @@ app.post('/api/tts', async (req, res) => {
       }
     });
 
-    // Unary output default: complete 24kHz WAV file in inlineData
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
     if (!base64Audio) {
@@ -194,13 +312,119 @@ app.post('/api/tts', async (req, res) => {
       audioBase64: base64Audio,
       mimeType: 'audio/wav',
       voiceUsed: selectedVoice,
-      provider: 'gemini-3.8-flash-lite-tts'
+      provider: 'gemini_live'
     });
   } catch (error: any) {
-    console.error('Gemini TTS error:', error);
+    console.error('TTS generation error:', error);
     res.status(500).json({
-      error: error.message || 'Gemini TTS generation failed',
+      error: error.message || 'TTS generation failed',
       fallbackToBrowser: true
+    });
+  }
+});
+
+// Production-Grade Speech-to-Text (STT) Endpoint
+// Dual pipeline: Google Cloud Speech-to-Text with Gemini Multimodal Audio Transcription fallback
+app.post('/api/stt', async (req, res) => {
+  try {
+    const { audioBase64, mimeType = 'audio/webm', languageCode = 'it-IT' } = req.body;
+
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return res.status(400).json({ error: 'Missing audioBase64 in request body' });
+    }
+
+    const cleanBase64 = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+
+    // 1. Try Google Cloud Speech-to-Text if client is available
+    if (cloudSpeechClient) {
+      try {
+        const isWebm = mimeType.includes('webm');
+        const isOgg = mimeType.includes('ogg');
+        const isWav = mimeType.includes('wav');
+
+        const [gcpSpeechResponse] = await cloudSpeechClient.recognize({
+          audio: { content: cleanBase64 },
+          config: {
+            languageCode,
+            alternativeLanguageCodes: ['en-US'],
+            enableAutomaticPunctuation: true,
+            encoding: (isWebm ? 'WEBM_OPUS' : isOgg ? 'OGG_OPUS' : isWav ? 'LINEAR16' : undefined) as any,
+            sampleRateHertz: isWav ? 16000 : 48000
+          }
+        });
+
+        const transcript = gcpSpeechResponse.results
+          ?.map((r: any) => r.alternatives?.[0]?.transcript)
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+
+        if (transcript) {
+          return res.json({
+            transcript,
+            provider: 'gcp_cloud_speech'
+          });
+        }
+      } catch (cloudSttErr: any) {
+        console.warn('[GCP STT] Cloud Speech-to-Text failed, falling back to Gemini Multimodal STT:', cloudSttErr.message);
+      }
+    }
+
+    // 2. Multimodal Audio Transcription via Gemini
+    if (GCP_PROJECT || process.env.GEMINI_API_KEY) {
+      const cleanMimeType = mimeType.split(';')[0] || 'audio/webm';
+      const geminiResponse = await generateContentWithFallback({
+        model: CHAT_MODEL,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: cleanMimeType,
+                  data: cleanBase64
+                }
+              },
+              {
+                text: `You are an accurate speech-to-text transcriber for a conversational Italian learning platform ("Parliamo Italiano").
+Transcribe the speaker's audio verbatim. 
+The student is speaking Italian (or attempting to speak Italian, with possible learner accents or brief English words).
+Do NOT reply with conversation, commentary, or corrections.
+Return ONLY a valid JSON object matching this schema:
+{
+  "transcript": "Exact transcribed speech"
+}`
+              }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              transcript: { type: Type.STRING, description: 'Verbatim transcribed speech' }
+            },
+            required: ['transcript']
+          }
+        }
+      });
+
+      const responseText = geminiResponse.text?.trim() || '{}';
+      const parsed = JSON.parse(responseText);
+
+      return res.json({
+        transcript: parsed.transcript || '',
+        provider: 'gemini_multimodal_stt'
+      });
+    }
+
+    res.status(503).json({ error: 'No STT backend providers available' });
+  } catch (error: any) {
+    console.error('STT processing error:', error);
+    res.status(500).json({
+      error: error.message || 'Speech-to-text transcription failed'
     });
   }
 });
@@ -225,6 +449,8 @@ async function startServer() {
 
   app.listen(PORT, () => {
     console.log(`Parliamo Italiano server listening on http://localhost:${PORT}`);
+    console.log(`[Config] Chat Model: ${CHAT_MODEL} | TTS Model: ${TTS_MODEL}`);
+    console.log(`[Config] GCP Project: ${GCP_PROJECT || '(none - using API key)'} | Region: ${GCP_REGION}`);
   });
 }
 
