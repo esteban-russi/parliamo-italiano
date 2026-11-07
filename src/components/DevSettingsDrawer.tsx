@@ -82,6 +82,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
     const defaults: DevSettings = {
       voiceProvider: 'gemini_live',
       voiceId: EMMANUELE.voiceId,
+      sttProvider: 'production_cloud',
       temperature: 0.7,
       speechRate: 0.95,
       audioSamplingRate: '24kHz',

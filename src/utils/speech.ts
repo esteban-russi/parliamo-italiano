@@ -94,6 +94,73 @@ class SpeechService {
   }
 
   /**
+   * Play real server-side Google Cloud Text-to-Speech audio (Neural2 / Journey)
+   */
+  public async speakWithGcpCloudTts(
+    text: string,
+    options: {
+      voiceName?: string;
+      playbackRate?: number;
+      gender?: 'male' | 'female';
+      onStart?: () => void;
+      onEnd?: () => void;
+      onError?: () => void;
+    } = {}
+  ): Promise<boolean> {
+    this.stopSpeaking();
+
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          provider: 'gcp_cloud_tts',
+          voiceName: options.voiceName || 'it-IT-Neural2-C',
+          gender: options.gender || 'male',
+          rate: options.playbackRate ?? 1.0,
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Cloud TTS server returned status ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data.audioBase64) {
+        throw new Error('No audio payload received');
+      }
+
+      const mime = data.mimeType || 'audio/mp3';
+      const audioSrc = `data:${mime};base64,${data.audioBase64}`;
+      const audio = new Audio(audioSrc);
+      audio.playbackRate = options.playbackRate ?? 1;
+      this.currentAudioElement = audio;
+
+      audio.onplay = () => {
+        if (options.onStart) options.onStart();
+      };
+
+      audio.onended = () => {
+        this.currentAudioElement = null;
+        if (options.onEnd) options.onEnd();
+      };
+
+      audio.onerror = () => {
+        this.currentAudioElement = null;
+        if (options.onError) options.onError();
+      };
+
+      await audio.play();
+      return true;
+    } catch (err) {
+      console.warn('Google Cloud TTS failed, falling back:', err);
+      if (options.onError) options.onError();
+      return false;
+    }
+  }
+
+  /**
    * Speak Italian text using browser speech synthesis (it-IT)
    */
   public speakItalian(
@@ -181,6 +248,25 @@ class SpeechService {
       const success = await this.speakWithGemini(text, {
         voiceName: options.voiceName,
         playbackRate: options.slow ? SLOW_FACTOR : 1,
+        onStart: options.onStart,
+        onEnd: options.onEnd,
+        onError: () => {
+          // Fallback to browser
+          this.speakItalian(text, options);
+        }
+      });
+
+      if (!success) {
+        this.speakItalian(text, options);
+      }
+      return;
+    }
+
+    if (options.provider === 'gcp_cloud_tts') {
+      const success = await this.speakWithGcpCloudTts(text, {
+        voiceName: options.voiceName?.startsWith('it-IT-') ? options.voiceName : undefined,
+        playbackRate: options.slow ? SLOW_FACTOR : (options.rate || 1.0),
+        gender: options.gender,
         onStart: options.onStart,
         onEnd: options.onEnd,
         onError: () => {
@@ -364,5 +450,249 @@ export function createSpeechRecognizer(
   } catch (err) {
     console.warn('Speech recognition error:', err);
     return null;
+  }
+}
+
+/**
+ * Transcribe recorded audio blob via the backend /api/stt endpoint
+ * Supports Google Cloud Speech-to-Text and Gemini Multimodal fallback
+ */
+export async function transcribeAudioBlob(
+  audioBlob: Blob,
+  languageCode: string = 'it-IT'
+): Promise<{ transcript: string; provider?: string }> {
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const res = reader.result as string;
+      const data = res.includes(',') ? res.split(',')[1] : res;
+      resolve(data);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(audioBlob);
+  });
+
+  const response = await fetch('/api/stt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      audioBase64: base64,
+      mimeType: audioBlob.type || 'audio/webm',
+      languageCode,
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`STT request failed with status ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+export interface AudioRecorderOptions {
+  onAudioLevel?: (level: number) => void;
+  onSilenceDetected?: (blob: Blob) => void;
+  silenceThresholdMs?: number;
+  rmsThreshold?: number;
+}
+
+/**
+ * Cross-browser AudioRecorder using standard MediaRecorder and Web Audio API Analyser
+ * Enables reliable microphone input on Chrome, Safari, Firefox, iOS and Android
+ */
+export class AudioRecorder {
+  private mediaStream: MediaStream | null = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private audioCtx: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private animationFrameId: number | null = null;
+  private isRecording: boolean = false;
+  private hasSpoken: boolean = false;
+  private lastSoundTime: number = 0;
+  private options: AudioRecorderOptions;
+
+  constructor(options: AudioRecorderOptions = {}) {
+    this.options = {
+      silenceThresholdMs: 1200,
+      rmsThreshold: 0.02,
+      ...options,
+    };
+  }
+
+  public async start(): Promise<boolean> {
+    if (this.isRecording) return true;
+    try {
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+
+      // Find supported mimeType across browsers
+      const candidateTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/aac',
+        'audio/ogg;codecs=opus'
+      ];
+      const mimeType = candidateTypes.find(type => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) || '';
+
+      this.mediaRecorder = mimeType 
+        ? new MediaRecorder(this.mediaStream, { mimeType }) 
+        : new MediaRecorder(this.mediaStream);
+
+      this.audioChunks = [];
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          this.audioChunks.push(event.data);
+        }
+      };
+
+      // Set up AudioContext Analyser for real-time visualizer & Voice Activity Detection (VAD)
+      const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtxClass) {
+        this.audioCtx = new AudioCtxClass();
+        if (this.audioCtx.state === 'suspended') {
+          await this.audioCtx.resume();
+        }
+        const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.fftSize = 512;
+        source.connect(this.analyser);
+        this.startLevelMonitoring();
+      }
+
+      this.mediaRecorder.start(250); // Emit chunk every 250ms
+      this.isRecording = true;
+      this.hasSpoken = false;
+      this.lastSoundTime = Date.now();
+      return true;
+    } catch (err) {
+      console.warn('Could not start AudioRecorder:', err);
+      return false;
+    }
+  }
+
+  private startLevelMonitoring() {
+    if (!this.analyser) return;
+    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+
+    const checkLevel = () => {
+      if (!this.isRecording || !this.analyser) return;
+      this.analyser.getByteFrequencyData(dataArray);
+
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const avg = sum / dataArray.length;
+      const normalizedLevel = Math.min(avg / 128, 1);
+
+      if (this.options.onAudioLevel) {
+        this.options.onAudioLevel(normalizedLevel);
+      }
+
+      const now = Date.now();
+      const threshold = this.options.rmsThreshold || 0.02;
+
+      if (normalizedLevel > threshold) {
+        this.hasSpoken = true;
+        this.lastSoundTime = now;
+      } else if (this.hasSpoken) {
+        const silenceDuration = now - this.lastSoundTime;
+        const silenceLimit = this.options.silenceThresholdMs || 1200;
+        if (silenceDuration > silenceLimit) {
+          this.hasSpoken = false;
+          if (this.options.onSilenceDetected) {
+            this.captureSnippet().then((blob) => {
+              if (blob && blob.size > 0 && this.options.onSilenceDetected) {
+                this.options.onSilenceDetected(blob);
+              }
+            });
+          }
+        }
+      }
+
+      this.animationFrameId = requestAnimationFrame(checkLevel);
+    };
+
+    this.animationFrameId = requestAnimationFrame(checkLevel);
+  }
+
+  private async captureSnippet(): Promise<Blob | null> {
+    if (!this.mediaRecorder || this.audioChunks.length === 0) return null;
+    const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
+    const blob = new Blob([...this.audioChunks], { type: mimeType });
+    this.audioChunks = [];
+    return blob;
+  }
+
+  public async stop(): Promise<Blob | null> {
+    if (!this.isRecording) return null;
+    this.isRecording = false;
+
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    if (this.audioCtx) {
+      try { await this.audioCtx.close(); } catch { /* ignore */ }
+      this.audioCtx = null;
+      this.analyser = null;
+    }
+
+    return new Promise<Blob | null>((resolve) => {
+      if (!this.mediaRecorder) {
+        resolve(null);
+        return;
+      }
+
+      this.mediaRecorder.onstop = () => {
+        const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
+        const finalBlob = new Blob(this.audioChunks, { type: mimeType });
+        this.audioChunks = [];
+        if (this.mediaStream) {
+          this.mediaStream.getTracks().forEach(t => t.stop());
+          this.mediaStream = null;
+        }
+        resolve(finalBlob);
+      };
+
+      try {
+        if (this.mediaRecorder.state !== 'inactive') {
+          this.mediaRecorder.stop();
+        } else {
+          resolve(null);
+        }
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
+  public cancel(): void {
+    this.isRecording = false;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    if (this.audioCtx) {
+      try { this.audioCtx.close(); } catch { /* ignore */ }
+      this.audioCtx = null;
+      this.analyser = null;
+    }
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      try { this.mediaRecorder.stop(); } catch { /* ignore */ }
+    }
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(t => t.stop());
+      this.mediaStream = null;
+    }
+    this.audioChunks = [];
   }
 }

@@ -36,6 +36,7 @@ export default function App() {
   const [devSettings, setDevSettings] = useState<DevSettings>({
     voiceProvider: 'gemini_live',
     voiceId: EMMANUELE.voiceId,
+    sttProvider: 'production_cloud',
     temperature: 0.7,
     speechRate: 0.95,
     audioSamplingRate: '24kHz',
