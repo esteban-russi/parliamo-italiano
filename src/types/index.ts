@@ -2,10 +2,15 @@ export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
 
 export type VoiceProvider = 
   | 'gemini_live'
+  | 'gcp_cloud_tts'
   | 'elevenlabs'
   | 'openai_tts'
   | 'azure_speech'
   | 'browser_tts';
+
+export type SttProvider =
+  | 'production_cloud'
+  | 'browser_web_speech';
 
 export interface GrammarNote {
   wordOrPhrase: string;
@@ -66,6 +71,7 @@ export interface SavedPhrase {
 export interface DevSettings {
   voiceProvider: VoiceProvider;
   voiceId: string;
+  sttProvider: SttProvider;
   temperature: number;
   speechRate: number;
   audioSamplingRate: '16kHz' | '24kHz' | '48kHz';
