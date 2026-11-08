@@ -5,6 +5,12 @@
 /** Speed multiplier used when a learner asks the tutor to speak more slowly. */
 const SLOW_FACTOR = 0.8;
 
+interface ServerTtsCallbacks {
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: () => void;
+}
+
 class SpeechService {
   private synth: SpeechSynthesis | null = null;
   private currentAudioElement: HTMLAudioElement | null = null;
@@ -31,18 +37,12 @@ class SpeechService {
   }
 
   /**
-   * Play real server-side Gemini TTS audio (WAV 24kHz)
+   * Fetch audio from /api/tts and play it. Resolves true once playback starts,
+   * false if the request or playback could not start.
    */
-  public async speakWithGemini(
-    text: string,
-    options: {
-      voiceName?: string;
-      /** Audio playback speed; 1 is natural. */
-      playbackRate?: number;
-      onStart?: () => void;
-      onEnd?: () => void;
-      onError?: () => void;
-    } = {}
+  private async playServerTts(
+    body: Record<string, unknown>,
+    options: ServerTtsCallbacks & { playbackRate?: number; defaultMimeType: string }
   ): Promise<boolean> {
     this.stopSpeaking();
 
@@ -50,10 +50,7 @@ class SpeechService {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          voiceName: options.voiceName || 'Fenrir'
-        })
+        body: JSON.stringify(body)
       });
 
       if (!res.ok) {
@@ -65,8 +62,8 @@ class SpeechService {
         throw new Error('No audio payload received');
       }
 
-      const audioSrc = `data:audio/wav;base64,${data.audioBase64}`;
-      const audio = new Audio(audioSrc);
+      const mime = data.mimeType || options.defaultMimeType;
+      const audio = new Audio(`data:${mime};base64,${data.audioBase64}`);
       audio.playbackRate = options.playbackRate ?? 1;
       this.currentAudioElement = audio;
 
@@ -87,77 +84,51 @@ class SpeechService {
       await audio.play();
       return true;
     } catch (err) {
-      console.warn('Real Gemini TTS server failed, falling back to browser synthesis:', err);
+      console.warn('Server TTS failed, falling back to browser synthesis:', err);
       if (options.onError) options.onError();
       return false;
     }
   }
 
   /**
-   * Play real server-side Google Cloud Text-to-Speech audio (Neural2 / Journey)
+   * Play real server-side Gemini TTS audio (WAV 24kHz)
    */
-  public async speakWithGcpCloudTts(
+  public speakWithGemini(
     text: string,
-    options: {
+    options: ServerTtsCallbacks & {
       voiceName?: string;
+      /** Audio playback speed; 1 is natural. */
       playbackRate?: number;
-      gender?: 'male' | 'female';
-      onStart?: () => void;
-      onEnd?: () => void;
-      onError?: () => void;
     } = {}
   ): Promise<boolean> {
-    this.stopSpeaking();
+    return this.playServerTts(
+      { text, voiceName: options.voiceName || 'Fenrir' },
+      { ...options, defaultMimeType: 'audio/wav' }
+    );
+  }
 
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          provider: 'gcp_cloud_tts',
-          voiceName: options.voiceName || 'it-IT-Neural2-C',
-          gender: options.gender || 'male',
-          rate: options.playbackRate ?? 1.0,
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`Cloud TTS server returned status ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (!data.audioBase64) {
-        throw new Error('No audio payload received');
-      }
-
-      const mime = data.mimeType || 'audio/mp3';
-      const audioSrc = `data:${mime};base64,${data.audioBase64}`;
-      const audio = new Audio(audioSrc);
-      audio.playbackRate = options.playbackRate ?? 1;
-      this.currentAudioElement = audio;
-
-      audio.onplay = () => {
-        if (options.onStart) options.onStart();
-      };
-
-      audio.onended = () => {
-        this.currentAudioElement = null;
-        if (options.onEnd) options.onEnd();
-      };
-
-      audio.onerror = () => {
-        this.currentAudioElement = null;
-        if (options.onError) options.onError();
-      };
-
-      await audio.play();
-      return true;
-    } catch (err) {
-      console.warn('Google Cloud TTS failed, falling back:', err);
-      if (options.onError) options.onError();
-      return false;
-    }
+  /**
+   * Play real server-side Google Cloud Text-to-Speech audio (Neural2 / Journey)
+   */
+  public speakWithGcpCloudTts(
+    text: string,
+    options: ServerTtsCallbacks & {
+      voiceName?: string;
+      /** Cloud TTS speakingRate (1 is natural); applied server-side, which keeps pitch. */
+      speakingRate?: number;
+      gender?: 'male' | 'female';
+    } = {}
+  ): Promise<boolean> {
+    return this.playServerTts(
+      {
+        text,
+        provider: 'gcp_cloud_tts',
+        voiceName: options.voiceName || 'it-IT-Neural2-C',
+        gender: options.gender || 'male',
+        rate: options.speakingRate ?? 1.0,
+      },
+      { ...options, defaultMimeType: 'audio/mp3' }
+    );
   }
 
   /**
@@ -240,9 +211,19 @@ class SpeechService {
       onError?: () => void;
     }
   ): Promise<void> {
+    const baseRate = options.rate || 1.0;
     if (options.slow) {
       options = { ...options, rate: (options.rate || 0.95) * SLOW_FACTOR };
     }
+
+    // A failed server request can surface both as onError and as a false
+    // return value; guard so the browser fallback only speaks once.
+    let fellBack = false;
+    const fallbackToBrowser = () => {
+      if (fellBack) return;
+      fellBack = true;
+      this.speakItalian(text, options);
+    };
 
     if (options.provider === 'gemini_live') {
       const success = await this.speakWithGemini(text, {
@@ -250,34 +231,24 @@ class SpeechService {
         playbackRate: options.slow ? SLOW_FACTOR : 1,
         onStart: options.onStart,
         onEnd: options.onEnd,
-        onError: () => {
-          // Fallback to browser
-          this.speakItalian(text, options);
-        }
+        onError: fallbackToBrowser
       });
 
-      if (!success) {
-        this.speakItalian(text, options);
-      }
+      if (!success) fallbackToBrowser();
       return;
     }
 
     if (options.provider === 'gcp_cloud_tts') {
       const success = await this.speakWithGcpCloudTts(text, {
         voiceName: options.voiceName?.startsWith('it-IT-') ? options.voiceName : undefined,
-        playbackRate: options.slow ? SLOW_FACTOR : (options.rate || 1.0),
+        speakingRate: options.slow ? baseRate * SLOW_FACTOR : baseRate,
         gender: options.gender,
         onStart: options.onStart,
         onEnd: options.onEnd,
-        onError: () => {
-          // Fallback to browser
-          this.speakItalian(text, options);
-        }
+        onError: fallbackToBrowser
       });
 
-      if (!success) {
-        this.speakItalian(text, options);
-      }
+      if (!success) fallbackToBrowser();
       return;
     }
 
@@ -504,6 +475,7 @@ export class AudioRecorder {
   private mediaStream: MediaStream | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
+  private recorderMimeType = '';
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private animationFrameId: number | null = null;
@@ -539,18 +511,9 @@ export class AudioRecorder {
         'audio/aac',
         'audio/ogg;codecs=opus'
       ];
-      const mimeType = candidateTypes.find(type => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) || '';
-
-      this.mediaRecorder = mimeType 
-        ? new MediaRecorder(this.mediaStream, { mimeType }) 
-        : new MediaRecorder(this.mediaStream);
-
+      this.recorderMimeType = candidateTypes.find(type => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) || '';
       this.audioChunks = [];
-      this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          this.audioChunks.push(event.data);
-        }
-      };
+      this.mediaRecorder = this.createMediaRecorder(this.mediaStream);
 
       // Set up AudioContext Analyser for real-time visualizer & Voice Activity Detection (VAD)
       const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -566,7 +529,6 @@ export class AudioRecorder {
         this.startLevelMonitoring();
       }
 
-      this.mediaRecorder.start(250); // Emit chunk every 250ms
       this.isRecording = true;
       this.hasSpoken = false;
       this.lastSoundTime = Date.now();
@@ -575,6 +537,20 @@ export class AudioRecorder {
       console.warn('Could not start AudioRecorder:', err);
       return false;
     }
+  }
+
+  /** Build a recorder on the stream that appends its chunks to audioChunks, and start it. */
+  private createMediaRecorder(stream: MediaStream): MediaRecorder {
+    const recorder = this.recorderMimeType
+      ? new MediaRecorder(stream, { mimeType: this.recorderMimeType })
+      : new MediaRecorder(stream);
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        this.audioChunks.push(event.data);
+      }
+    };
+    recorder.start(250); // Emit chunk every 250ms
+    return recorder;
   }
 
   private startLevelMonitoring() {
@@ -623,12 +599,30 @@ export class AudioRecorder {
     this.animationFrameId = requestAnimationFrame(checkLevel);
   }
 
-  private async captureSnippet(): Promise<Blob | null> {
-    if (!this.mediaRecorder || this.audioChunks.length === 0) return null;
-    const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
-    const blob = new Blob([...this.audioChunks], { type: mimeType });
-    this.audioChunks = [];
-    return blob;
+  /**
+   * Finish the current utterance as a self-contained file and keep listening.
+   *
+   * Only the first chunk of a MediaRecorder session carries the container
+   * header (WebM/Ogg/MP4), so slicing the chunk list mid-session yields
+   * undecodable fragments. Instead, stop the recorder to flush a complete
+   * file and start a fresh one on the same stream.
+   */
+  private captureSnippet(): Promise<Blob | null> {
+    const recorder = this.mediaRecorder;
+    const stream = this.mediaStream;
+    if (!recorder || !stream || recorder.state === 'inactive') return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+      recorder.onstop = () => {
+        const chunks = this.audioChunks;
+        this.audioChunks = [];
+        if (this.isRecording && this.mediaStream === stream) {
+          this.mediaRecorder = this.createMediaRecorder(stream);
+        }
+        resolve(chunks.length ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }) : null);
+      };
+      recorder.stop();
+    });
   }
 
   public async stop(): Promise<Blob | null> {

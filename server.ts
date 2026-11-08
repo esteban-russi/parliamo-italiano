@@ -1,10 +1,12 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import { SpeechClient } from '@google-cloud/speech';
+import { PERSONA_PROMPTS } from './src/data/personaPrompts';
 
 dotenv.config();
 
@@ -20,9 +22,31 @@ const GCP_REGION = process.env.GCP_REGION || 'europe-west2';
 
 // Split models: Chat / Pedagogical Tutor vs. Audio / TTS Generation
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.0-flash';
+const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-3.8-flash-lite-tts';
 
-app.use(express.json({ limit: '25mb' }));
+// Gemini is reachable through Vertex AI (GCP_PROJECT + ADC) or an AI Studio key
+const HAS_GENAI_CREDENTIALS = Boolean(GCP_PROJECT || process.env.GEMINI_API_KEY);
+
+// Behind a load balancer (e.g. Cloud Run) set TRUST_PROXY_HOPS=1 so req.ip is
+// the client's address rather than the proxy's, or every user shares one limit.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 0);
+
+// Every Gemini / Cloud Speech call is billed. Cap each IP before the body is
+// parsed. A voice-call turn makes ~3 requests (STT, chat, TTS), so the default
+// leaves room for about 20 turns a minute.
+const RATE_LIMIT_PER_MINUTE = Number(process.env.RATE_LIMIT_PER_MINUTE) || 60;
+app.use(['/api/chat', '/api/tts', '/api/stt'], rateLimit({
+  windowMs: 60_000,
+  limit: RATE_LIMIT_PER_MINUTE,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down', fallbackToBrowser: true },
+}));
+
+// Only STT uploads base64 audio; every other route gets a small body cap.
+// Registered first so the global parser below skips already-parsed bodies.
+app.use('/api/stt', express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // Helper to create GoogleGenAI client (Vertex AI or Google AI Studio)
 function createGenAiClient(preferVertex: boolean) {
@@ -94,7 +118,6 @@ app.get('/api/health', (req, res) => {
       tts: TTS_MODEL,
     },
     gcp: {
-      project: GCP_PROJECT || null,
       region: GCP_REGION,
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
       hasGcpProject: Boolean(GCP_PROJECT),
@@ -108,16 +131,30 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const GRAMMAR_STRICTNESS_LEVELS = ['conversational', 'tutor', 'strict'];
+
 // Gemini Conversational Chat API with Italian pedagogical grammar analysis
 app.post('/api/chat', async (req, res) => {
   try {
-    const { personaPrompt, history, userMessage, temperature = 0.7, grammarStrictness = 'tutor' } = req.body;
+    const { personaId, history, userMessage, temperature = 0.7, grammarStrictness = 'tutor' } = req.body;
 
-    if (!userMessage) {
+    if (!userMessage || typeof userMessage !== 'string') {
       return res.status(400).json({ error: 'Missing userMessage' });
     }
 
-    if (!GCP_PROJECT && !process.env.GEMINI_API_KEY) {
+    // The system prompt is built only from server-owned text, so a caller
+    // cannot repurpose the endpoint with their own instructions.
+    const personaPrompt = typeof personaId === 'string' && Object.hasOwn(PERSONA_PROMPTS, personaId)
+      ? PERSONA_PROMPTS[personaId]
+      : undefined;
+    if (!personaPrompt) {
+      return res.status(400).json({ error: `Unknown personaId: ${String(personaId)}` });
+    }
+    if (!GRAMMAR_STRICTNESS_LEVELS.includes(grammarStrictness)) {
+      return res.status(400).json({ error: `grammarStrictness must be one of ${GRAMMAR_STRICTNESS_LEVELS.join(', ')}` });
+    }
+
+    if (!HAS_GENAI_CREDENTIALS) {
       return res.status(503).json({
         error: 'Neither GCP_PROJECT nor GEMINI_API_KEY is configured',
         fallbackNeeded: true
@@ -258,7 +295,7 @@ app.post('/api/tts', async (req, res) => {
     }
 
     // 2. Gemini Native Multimodal Audio Generation
-    if (!GCP_PROJECT && !process.env.GEMINI_API_KEY) {
+    if (!HAS_GENAI_CREDENTIALS) {
       return res.status(503).json({
         error: 'No AI credentials configured for Gemini TTS',
         fallbackToBrowser: true
@@ -323,6 +360,14 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+/** Map a browser recording MIME type to a Cloud Speech-to-Text encoding, or null if unsupported. */
+export function cloudSttEncodingFor(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'LINEAR16' | null {
+  if (mimeType.includes('webm')) return 'WEBM_OPUS';
+  if (mimeType.includes('ogg')) return 'OGG_OPUS';
+  if (mimeType.includes('wav')) return 'LINEAR16';
+  return null;
+}
+
 // Production-Grade Speech-to-Text (STT) Endpoint
 // Dual pipeline: Google Cloud Speech-to-Text with Gemini Multimodal Audio Transcription fallback
 app.post('/api/stt', async (req, res) => {
@@ -335,21 +380,21 @@ app.post('/api/stt', async (req, res) => {
 
     const cleanBase64 = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
 
-    // 1. Try Google Cloud Speech-to-Text if client is available
-    if (cloudSpeechClient) {
+    // 1. Try Google Cloud Speech-to-Text if the client is available and can decode
+    // this container. Safari records audio/mp4 (AAC), which Cloud STT does not accept,
+    // so those requests go straight to Gemini instead of failing a round-trip first.
+    const cloudEncoding = cloudSttEncodingFor(mimeType);
+    if (cloudSpeechClient && cloudEncoding) {
       try {
-        const isWebm = mimeType.includes('webm');
-        const isOgg = mimeType.includes('ogg');
-        const isWav = mimeType.includes('wav');
-
         const [gcpSpeechResponse] = await cloudSpeechClient.recognize({
           audio: { content: cleanBase64 },
           config: {
             languageCode,
             alternativeLanguageCodes: ['en-US'],
             enableAutomaticPunctuation: true,
-            encoding: (isWebm ? 'WEBM_OPUS' : isOgg ? 'OGG_OPUS' : isWav ? 'LINEAR16' : undefined) as any,
-            sampleRateHertz: isWav ? 16000 : 48000
+            encoding: cloudEncoding,
+            // WAV carries its rate in the header; browser Opus capture is 48 kHz
+            ...(cloudEncoding === 'LINEAR16' ? {} : { sampleRateHertz: 48000 }),
           }
         });
 
@@ -371,7 +416,7 @@ app.post('/api/stt', async (req, res) => {
     }
 
     // 2. Multimodal Audio Transcription via Gemini
-    if (GCP_PROJECT || process.env.GEMINI_API_KEY) {
+    if (HAS_GENAI_CREDENTIALS) {
       const cleanMimeType = mimeType.split(';')[0] || 'audio/webm';
       const geminiResponse = await generateContentWithFallback({
         model: CHAT_MODEL,
@@ -454,4 +499,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Tests import `app` and drive it with supertest, so don't bind a port or load Vite there
+if (!process.env.VITEST) {
+  startServer();
+}
+
+export { app };

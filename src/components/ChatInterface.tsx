@@ -52,6 +52,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (recognizerRef.current) {
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
       }
+      audioRecorderRef.current?.cancel();
+      audioRecorderRef.current = null;
     };
   }, []);
 

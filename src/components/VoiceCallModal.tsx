@@ -59,7 +59,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  // Ref, not state: only the recorder callbacks read it, and a state value in the
+  // listening effect's deps restarted the mic every time a transcription began or ended
+  const isTranscribingRef = useRef(false);
 
   // Focus trap without Escape: hanging up stays an explicit action
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -171,7 +173,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaPrompt: personaRef.current.personaPrompt,
+          personaId: personaRef.current.id,
           history: dialogueHistoryRef.current.slice(-4),
           userMessage: trimmed,
           temperature: devSettingsRef.current.temperature,
@@ -217,7 +219,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         silenceThresholdMs: 1200,
         rmsThreshold: 0.02,
         onAudioLevel: (lvl) => {
-          if (lvl > 0.04 && !isAiSpeakingRef.current && !isTranscribing) {
+          if (lvl > 0.04 && !isAiSpeakingRef.current && !isTranscribingRef.current) {
             setLiveUserTranscript((prev) => prev.startsWith('Trascrizione') ? prev : 'Ti ascolto…');
           }
         },
@@ -226,7 +228,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           try {
             setSpeakingState('thinking');
             setLiveUserTranscript('Trascrizione vocale GCP…');
-            setIsTranscribing(true);
+            isTranscribingRef.current = true;
 
             const result = await transcribeAudioBlob(blob, 'it-IT');
             const trimmed = result.transcript?.trim();
@@ -242,7 +244,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
             setSpeakingState('listening');
             setLiveUserTranscript('');
           } finally {
-            setIsTranscribing(false);
+            isTranscribingRef.current = false;
           }
         }
       });
@@ -311,7 +313,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
       }
     };
-  }, [callStatus, isMuted, speakingState, processLiveUserSpeech, isTranscribing]);
+  }, [callStatus, isMuted, speakingState, processLiveUserSpeech]);
 
   // Connect call audio & lifecycle (Runs ONLY ONCE per call mount)
   useEffect(() => {
