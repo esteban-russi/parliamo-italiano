@@ -22,6 +22,9 @@ const GCP_REGION = process.env.GCP_REGION || 'europe-west2';
 const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.0-flash';
 
+// Gemini is reachable through Vertex AI (GCP_PROJECT + ADC) or an AI Studio key
+const HAS_GENAI_CREDENTIALS = Boolean(GCP_PROJECT || process.env.GEMINI_API_KEY);
+
 app.use(express.json({ limit: '25mb' }));
 
 // Helper to create GoogleGenAI client (Vertex AI or Google AI Studio)
@@ -117,7 +120,7 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Missing userMessage' });
     }
 
-    if (!GCP_PROJECT && !process.env.GEMINI_API_KEY) {
+    if (!HAS_GENAI_CREDENTIALS) {
       return res.status(503).json({
         error: 'Neither GCP_PROJECT nor GEMINI_API_KEY is configured',
         fallbackNeeded: true
@@ -258,7 +261,7 @@ app.post('/api/tts', async (req, res) => {
     }
 
     // 2. Gemini Native Multimodal Audio Generation
-    if (!GCP_PROJECT && !process.env.GEMINI_API_KEY) {
+    if (!HAS_GENAI_CREDENTIALS) {
       return res.status(503).json({
         error: 'No AI credentials configured for Gemini TTS',
         fallbackToBrowser: true
@@ -379,7 +382,7 @@ app.post('/api/stt', async (req, res) => {
     }
 
     // 2. Multimodal Audio Transcription via Gemini
-    if (GCP_PROJECT || process.env.GEMINI_API_KEY) {
+    if (HAS_GENAI_CREDENTIALS) {
       const cleanMimeType = mimeType.split(';')[0] || 'audio/webm';
       const geminiResponse = await generateContentWithFallback({
         model: CHAT_MODEL,
