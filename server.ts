@@ -100,7 +100,6 @@ app.get('/api/health', (req, res) => {
       tts: TTS_MODEL,
     },
     gcp: {
-      project: GCP_PROJECT || null,
       region: GCP_REGION,
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
       hasGcpProject: Boolean(GCP_PROJECT),
