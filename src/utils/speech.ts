@@ -214,21 +214,25 @@ class SpeechService {
       options = { ...options, rate: (options.rate || 0.95) * SLOW_FACTOR };
     }
 
+    // A failed server request can surface both as onError and as a false
+    // return value; guard so the browser fallback only speaks once.
+    let fellBack = false;
+    const fallbackToBrowser = () => {
+      if (fellBack) return;
+      fellBack = true;
+      this.speakItalian(text, options);
+    };
+
     if (options.provider === 'gemini_live') {
       const success = await this.speakWithGemini(text, {
         voiceName: options.voiceName,
         playbackRate: options.slow ? SLOW_FACTOR : 1,
         onStart: options.onStart,
         onEnd: options.onEnd,
-        onError: () => {
-          // Fallback to browser
-          this.speakItalian(text, options);
-        }
+        onError: fallbackToBrowser
       });
 
-      if (!success) {
-        this.speakItalian(text, options);
-      }
+      if (!success) fallbackToBrowser();
       return;
     }
 
@@ -239,15 +243,10 @@ class SpeechService {
         gender: options.gender,
         onStart: options.onStart,
         onEnd: options.onEnd,
-        onError: () => {
-          // Fallback to browser
-          this.speakItalian(text, options);
-        }
+        onError: fallbackToBrowser
       });
 
-      if (!success) {
-        this.speakItalian(text, options);
-      }
+      if (!success) fallbackToBrowser();
       return;
     }
 
