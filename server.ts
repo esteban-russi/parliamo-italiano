@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -25,6 +26,22 @@ const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-3.8-flash-lite-tts';
 
 // Gemini is reachable through Vertex AI (GCP_PROJECT + ADC) or an AI Studio key
 const HAS_GENAI_CREDENTIALS = Boolean(GCP_PROJECT || process.env.GEMINI_API_KEY);
+
+// Behind a load balancer (e.g. Cloud Run) set TRUST_PROXY_HOPS=1 so req.ip is
+// the client's address rather than the proxy's, or every user shares one limit.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 0);
+
+// Every Gemini / Cloud Speech call is billed. Cap each IP before the body is
+// parsed. A voice-call turn makes ~3 requests (STT, chat, TTS), so the default
+// leaves room for about 20 turns a minute.
+const RATE_LIMIT_PER_MINUTE = Number(process.env.RATE_LIMIT_PER_MINUTE) || 60;
+app.use(['/api/chat', '/api/tts', '/api/stt'], rateLimit({
+  windowMs: 60_000,
+  limit: RATE_LIMIT_PER_MINUTE,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down', fallbackToBrowser: true },
+}));
 
 // Only STT uploads base64 audio; every other route gets a small body cap.
 // Registered first so the global parser below skips already-parsed bodies.
