@@ -475,6 +475,7 @@ export class AudioRecorder {
   private mediaStream: MediaStream | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
+  private recorderMimeType = '';
   private audioCtx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private animationFrameId: number | null = null;
@@ -510,18 +511,9 @@ export class AudioRecorder {
         'audio/aac',
         'audio/ogg;codecs=opus'
       ];
-      const mimeType = candidateTypes.find(type => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) || '';
-
-      this.mediaRecorder = mimeType 
-        ? new MediaRecorder(this.mediaStream, { mimeType }) 
-        : new MediaRecorder(this.mediaStream);
-
+      this.recorderMimeType = candidateTypes.find(type => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) || '';
       this.audioChunks = [];
-      this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          this.audioChunks.push(event.data);
-        }
-      };
+      this.mediaRecorder = this.createMediaRecorder(this.mediaStream);
 
       // Set up AudioContext Analyser for real-time visualizer & Voice Activity Detection (VAD)
       const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -537,7 +529,6 @@ export class AudioRecorder {
         this.startLevelMonitoring();
       }
 
-      this.mediaRecorder.start(250); // Emit chunk every 250ms
       this.isRecording = true;
       this.hasSpoken = false;
       this.lastSoundTime = Date.now();
@@ -546,6 +537,20 @@ export class AudioRecorder {
       console.warn('Could not start AudioRecorder:', err);
       return false;
     }
+  }
+
+  /** Build a recorder on the stream that appends its chunks to audioChunks, and start it. */
+  private createMediaRecorder(stream: MediaStream): MediaRecorder {
+    const recorder = this.recorderMimeType
+      ? new MediaRecorder(stream, { mimeType: this.recorderMimeType })
+      : new MediaRecorder(stream);
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        this.audioChunks.push(event.data);
+      }
+    };
+    recorder.start(250); // Emit chunk every 250ms
+    return recorder;
   }
 
   private startLevelMonitoring() {
@@ -594,12 +599,30 @@ export class AudioRecorder {
     this.animationFrameId = requestAnimationFrame(checkLevel);
   }
 
-  private async captureSnippet(): Promise<Blob | null> {
-    if (!this.mediaRecorder || this.audioChunks.length === 0) return null;
-    const mimeType = this.mediaRecorder.mimeType || 'audio/webm';
-    const blob = new Blob([...this.audioChunks], { type: mimeType });
-    this.audioChunks = [];
-    return blob;
+  /**
+   * Finish the current utterance as a self-contained file and keep listening.
+   *
+   * Only the first chunk of a MediaRecorder session carries the container
+   * header (WebM/Ogg/MP4), so slicing the chunk list mid-session yields
+   * undecodable fragments. Instead, stop the recorder to flush a complete
+   * file and start a fresh one on the same stream.
+   */
+  private captureSnippet(): Promise<Blob | null> {
+    const recorder = this.mediaRecorder;
+    const stream = this.mediaStream;
+    if (!recorder || !stream || recorder.state === 'inactive') return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+      recorder.onstop = () => {
+        const chunks = this.audioChunks;
+        this.audioChunks = [];
+        if (this.isRecording && this.mediaStream === stream) {
+          this.mediaRecorder = this.createMediaRecorder(stream);
+        }
+        resolve(chunks.length ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }) : null);
+      };
+      recorder.stop();
+    });
   }
 
   public async stop(): Promise<Blob | null> {
