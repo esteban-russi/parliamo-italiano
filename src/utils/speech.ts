@@ -5,6 +5,12 @@
 /** Speed multiplier used when a learner asks the tutor to speak more slowly. */
 const SLOW_FACTOR = 0.8;
 
+interface ServerTtsCallbacks {
+  onStart?: () => void;
+  onEnd?: () => void;
+  onError?: () => void;
+}
+
 class SpeechService {
   private synth: SpeechSynthesis | null = null;
   private currentAudioElement: HTMLAudioElement | null = null;
@@ -31,18 +37,12 @@ class SpeechService {
   }
 
   /**
-   * Play real server-side Gemini TTS audio (WAV 24kHz)
+   * Fetch audio from /api/tts and play it. Resolves true once playback starts,
+   * false if the request or playback could not start.
    */
-  public async speakWithGemini(
-    text: string,
-    options: {
-      voiceName?: string;
-      /** Audio playback speed; 1 is natural. */
-      playbackRate?: number;
-      onStart?: () => void;
-      onEnd?: () => void;
-      onError?: () => void;
-    } = {}
+  private async playServerTts(
+    body: Record<string, unknown>,
+    options: ServerTtsCallbacks & { playbackRate?: number; defaultMimeType: string }
   ): Promise<boolean> {
     this.stopSpeaking();
 
@@ -50,10 +50,7 @@ class SpeechService {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          voiceName: options.voiceName || 'Fenrir'
-        })
+        body: JSON.stringify(body)
       });
 
       if (!res.ok) {
@@ -65,8 +62,8 @@ class SpeechService {
         throw new Error('No audio payload received');
       }
 
-      const audioSrc = `data:audio/wav;base64,${data.audioBase64}`;
-      const audio = new Audio(audioSrc);
+      const mime = data.mimeType || options.defaultMimeType;
+      const audio = new Audio(`data:${mime};base64,${data.audioBase64}`);
       audio.playbackRate = options.playbackRate ?? 1;
       this.currentAudioElement = audio;
 
@@ -87,77 +84,50 @@ class SpeechService {
       await audio.play();
       return true;
     } catch (err) {
-      console.warn('Real Gemini TTS server failed, falling back to browser synthesis:', err);
+      console.warn('Server TTS failed, falling back to browser synthesis:', err);
       if (options.onError) options.onError();
       return false;
     }
   }
 
   /**
+   * Play real server-side Gemini TTS audio (WAV 24kHz)
+   */
+  public speakWithGemini(
+    text: string,
+    options: ServerTtsCallbacks & {
+      voiceName?: string;
+      /** Audio playback speed; 1 is natural. */
+      playbackRate?: number;
+    } = {}
+  ): Promise<boolean> {
+    return this.playServerTts(
+      { text, voiceName: options.voiceName || 'Fenrir' },
+      { ...options, defaultMimeType: 'audio/wav' }
+    );
+  }
+
+  /**
    * Play real server-side Google Cloud Text-to-Speech audio (Neural2 / Journey)
    */
-  public async speakWithGcpCloudTts(
+  public speakWithGcpCloudTts(
     text: string,
-    options: {
+    options: ServerTtsCallbacks & {
       voiceName?: string;
       playbackRate?: number;
       gender?: 'male' | 'female';
-      onStart?: () => void;
-      onEnd?: () => void;
-      onError?: () => void;
     } = {}
   ): Promise<boolean> {
-    this.stopSpeaking();
-
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          provider: 'gcp_cloud_tts',
-          voiceName: options.voiceName || 'it-IT-Neural2-C',
-          gender: options.gender || 'male',
-          rate: options.playbackRate ?? 1.0,
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`Cloud TTS server returned status ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (!data.audioBase64) {
-        throw new Error('No audio payload received');
-      }
-
-      const mime = data.mimeType || 'audio/mp3';
-      const audioSrc = `data:${mime};base64,${data.audioBase64}`;
-      const audio = new Audio(audioSrc);
-      audio.playbackRate = options.playbackRate ?? 1;
-      this.currentAudioElement = audio;
-
-      audio.onplay = () => {
-        if (options.onStart) options.onStart();
-      };
-
-      audio.onended = () => {
-        this.currentAudioElement = null;
-        if (options.onEnd) options.onEnd();
-      };
-
-      audio.onerror = () => {
-        this.currentAudioElement = null;
-        if (options.onError) options.onError();
-      };
-
-      await audio.play();
-      return true;
-    } catch (err) {
-      console.warn('Google Cloud TTS failed, falling back:', err);
-      if (options.onError) options.onError();
-      return false;
-    }
+    return this.playServerTts(
+      {
+        text,
+        provider: 'gcp_cloud_tts',
+        voiceName: options.voiceName || 'it-IT-Neural2-C',
+        gender: options.gender || 'male',
+        rate: options.playbackRate ?? 1.0,
+      },
+      { ...options, defaultMimeType: 'audio/mp3' }
+    );
   }
 
   /**
