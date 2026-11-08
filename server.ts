@@ -361,7 +361,7 @@ app.post('/api/tts', async (req, res) => {
 });
 
 /** Map a browser recording MIME type to a Cloud Speech-to-Text encoding, or null if unsupported. */
-function cloudSttEncodingFor(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'LINEAR16' | null {
+export function cloudSttEncodingFor(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'LINEAR16' | null {
   if (mimeType.includes('webm')) return 'WEBM_OPUS';
   if (mimeType.includes('ogg')) return 'OGG_OPUS';
   if (mimeType.includes('wav')) return 'LINEAR16';
@@ -499,4 +499,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Tests import `app` and drive it with supertest, so don't bind a port or load Vite there
+if (!process.env.VITEST) {
+  startServer();
+}
+
+export { app };
