@@ -25,7 +25,10 @@ const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.0-flash';
 // Gemini is reachable through Vertex AI (GCP_PROJECT + ADC) or an AI Studio key
 const HAS_GENAI_CREDENTIALS = Boolean(GCP_PROJECT || process.env.GEMINI_API_KEY);
 
-app.use(express.json({ limit: '25mb' }));
+// Only STT uploads base64 audio; every other route gets a small body cap.
+// Registered first so the global parser below skips already-parsed bodies.
+app.use('/api/stt', express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // Helper to create GoogleGenAI client (Vertex AI or Google AI Studio)
 function createGenAiClient(preferVertex: boolean) {
