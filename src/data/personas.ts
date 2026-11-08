@@ -1,4 +1,5 @@
 import { ChatMessage, Persona, SavedPhrase } from '../types';
+import { PERSONA_PROMPTS } from './personaPrompts';
 import emmanueleIdle from '../assets/emmanuele/neutral.webp';
 import emmanueleSpeaking from '../assets/emmanuele/talking.webp';
 
@@ -27,7 +28,7 @@ export const EMMANUELE: Persona = {
   voiceGender: 'male',
   sampleAudioText: 'Salve, amico! Sono Emmanuele. Oggi Roma è piena di gente. Raccontami qualcosa di te!',
   sampleAudioTranslation: 'Hello, friend! I am Emmanuele. Rome is full of people today. Tell me something about yourself!',
-  personaPrompt: 'Sei Emmanuele il Romano, un ex legionario in pensione di 42 anni che vive a Roma. Sei caloroso, ironico e paziente. Parli un italiano chiaro per studenti A2/B1, con frasi brevi e qualche espressione romana. Fai domande sulla vita quotidiana dello studente, correggi gli errori con gentilezza e ogni tanto racconti un aneddoto sulla Roma antica.'
+  personaPrompt: PERSONA_PROMPTS.emmanuele
 };
 
 export const INITIAL_MESSAGES: ChatMessage[] = [

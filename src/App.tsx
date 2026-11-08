@@ -99,7 +99,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaPrompt: persona.personaPrompt,
+          personaId: persona.id,
           history: updated.slice(-6),
           userMessage: text,
           temperature: devSettings.temperature,

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import { SpeechClient } from '@google-cloud/speech';
+import { PERSONA_PROMPTS } from './src/data/personaPrompts';
 
 dotenv.config();
 
@@ -113,13 +114,27 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const GRAMMAR_STRICTNESS_LEVELS = ['conversational', 'tutor', 'strict'];
+
 // Gemini Conversational Chat API with Italian pedagogical grammar analysis
 app.post('/api/chat', async (req, res) => {
   try {
-    const { personaPrompt, history, userMessage, temperature = 0.7, grammarStrictness = 'tutor' } = req.body;
+    const { personaId, history, userMessage, temperature = 0.7, grammarStrictness = 'tutor' } = req.body;
 
-    if (!userMessage) {
+    if (!userMessage || typeof userMessage !== 'string') {
       return res.status(400).json({ error: 'Missing userMessage' });
+    }
+
+    // The system prompt is built only from server-owned text, so a caller
+    // cannot repurpose the endpoint with their own instructions.
+    const personaPrompt = typeof personaId === 'string' && Object.hasOwn(PERSONA_PROMPTS, personaId)
+      ? PERSONA_PROMPTS[personaId]
+      : undefined;
+    if (!personaPrompt) {
+      return res.status(400).json({ error: `Unknown personaId: ${String(personaId)}` });
+    }
+    if (!GRAMMAR_STRICTNESS_LEVELS.includes(grammarStrictness)) {
+      return res.status(400).json({ error: `grammarStrictness must be one of ${GRAMMAR_STRICTNESS_LEVELS.join(', ')}` });
     }
 
     if (!HAS_GENAI_CREDENTIALS) {

@@ -173,7 +173,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personaPrompt: personaRef.current.personaPrompt,
+          personaId: personaRef.current.id,
           history: dialogueHistoryRef.current.slice(-4),
           userMessage: trimmed,
           temperature: devSettingsRef.current.temperature,
