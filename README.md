@@ -80,13 +80,16 @@ React 19 · TypeScript · Vite 8 · Tailwind CSS 4 · Motion · Lucide · Expres
 | `npm run build` | Builds the frontend into `dist/` |
 | `npm start` | Serves the production build with Express |
 | `npm run lint` | Type-checks the project with `tsc --noEmit` |
+| `npm test` | Runs the Vitest suite in `tests/` (offline; no GCP credentials needed) |
 
 Speech recognition relies on the browser's Web Speech API, so voice calls work best in Chrome or Edge.
+
+The billed API routes (`/api/chat`, `/api/tts`, `/api/stt`) are rate-limited per IP (`RATE_LIMIT_PER_MINUTE`, default 60). When deploying behind a proxy such as Cloud Run, set `TRUST_PROXY_HOPS=1` so the limit applies to each client rather than to the proxy.
 
 ## Project structure
 
 ```
-├── server.ts                  # Express server: /api/chat, /api/tts, /api/health, Vite/static serving
+├── server.ts                  # Express server: /api/chat, /api/tts, /api/stt, /api/health, Vite/static serving
 ├── src/
 │   ├── App.tsx                # App state and dashboard layout
 │   ├── assets/emmanuele/      # Tutor portraits (resting and speaking)
