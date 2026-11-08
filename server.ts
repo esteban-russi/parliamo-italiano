@@ -323,6 +323,14 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+/** Map a browser recording MIME type to a Cloud Speech-to-Text encoding, or null if unsupported. */
+function cloudSttEncodingFor(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'LINEAR16' | null {
+  if (mimeType.includes('webm')) return 'WEBM_OPUS';
+  if (mimeType.includes('ogg')) return 'OGG_OPUS';
+  if (mimeType.includes('wav')) return 'LINEAR16';
+  return null;
+}
+
 // Production-Grade Speech-to-Text (STT) Endpoint
 // Dual pipeline: Google Cloud Speech-to-Text with Gemini Multimodal Audio Transcription fallback
 app.post('/api/stt', async (req, res) => {
@@ -335,21 +343,21 @@ app.post('/api/stt', async (req, res) => {
 
     const cleanBase64 = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
 
-    // 1. Try Google Cloud Speech-to-Text if client is available
-    if (cloudSpeechClient) {
+    // 1. Try Google Cloud Speech-to-Text if the client is available and can decode
+    // this container. Safari records audio/mp4 (AAC), which Cloud STT does not accept,
+    // so those requests go straight to Gemini instead of failing a round-trip first.
+    const cloudEncoding = cloudSttEncodingFor(mimeType);
+    if (cloudSpeechClient && cloudEncoding) {
       try {
-        const isWebm = mimeType.includes('webm');
-        const isOgg = mimeType.includes('ogg');
-        const isWav = mimeType.includes('wav');
-
         const [gcpSpeechResponse] = await cloudSpeechClient.recognize({
           audio: { content: cleanBase64 },
           config: {
             languageCode,
             alternativeLanguageCodes: ['en-US'],
             enableAutomaticPunctuation: true,
-            encoding: (isWebm ? 'WEBM_OPUS' : isOgg ? 'OGG_OPUS' : isWav ? 'LINEAR16' : undefined) as any,
-            sampleRateHertz: isWav ? 16000 : 48000
+            encoding: cloudEncoding,
+            // WAV carries its rate in the header; browser Opus capture is 48 kHz
+            ...(cloudEncoding === 'LINEAR16' ? {} : { sampleRateHertz: 48000 }),
           }
         });
 
