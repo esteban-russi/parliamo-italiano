@@ -114,7 +114,8 @@ class SpeechService {
     text: string,
     options: ServerTtsCallbacks & {
       voiceName?: string;
-      playbackRate?: number;
+      /** Cloud TTS speakingRate (1 is natural); applied server-side, which keeps pitch. */
+      speakingRate?: number;
       gender?: 'male' | 'female';
     } = {}
   ): Promise<boolean> {
@@ -124,7 +125,7 @@ class SpeechService {
         provider: 'gcp_cloud_tts',
         voiceName: options.voiceName || 'it-IT-Neural2-C',
         gender: options.gender || 'male',
-        rate: options.playbackRate ?? 1.0,
+        rate: options.speakingRate ?? 1.0,
       },
       { ...options, defaultMimeType: 'audio/mp3' }
     );
@@ -210,6 +211,7 @@ class SpeechService {
       onError?: () => void;
     }
   ): Promise<void> {
+    const baseRate = options.rate || 1.0;
     if (options.slow) {
       options = { ...options, rate: (options.rate || 0.95) * SLOW_FACTOR };
     }
@@ -239,7 +241,7 @@ class SpeechService {
     if (options.provider === 'gcp_cloud_tts') {
       const success = await this.speakWithGcpCloudTts(text, {
         voiceName: options.voiceName?.startsWith('it-IT-') ? options.voiceName : undefined,
-        playbackRate: options.slow ? SLOW_FACTOR : (options.rate || 1.0),
+        speakingRate: options.slow ? baseRate * SLOW_FACTOR : baseRate,
         gender: options.gender,
         onStart: options.onStart,
         onEnd: options.onEnd,
