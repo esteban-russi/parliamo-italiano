@@ -91,19 +91,33 @@ describe('speakSmart with Gemini TTS', () => {
   });
 });
 
-describe('speakSmart fallback', () => {
+describe('speakSmart failures', () => {
   it.each(['gemini_live', 'gcp_cloud_tts'])(
-    'falls back to browser speech exactly once when %s fails',
+    'reports a %s failure via onError once and never uses browser speech',
     async (provider) => {
       fetchMock.mockResolvedValue({ ok: false, status: 500 });
       vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const onError = vi.fn();
       const speech = await loadSpeechService();
 
-      await speech.speakSmart('Ciao', { provider });
+      await speech.speakSmart('Ciao', { provider, onError });
 
-      expect(synth.speak).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(synth.speak).not.toHaveBeenCalled();
     }
   );
+
+  it('reports unimplemented providers via onError without browser speech', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onError = vi.fn();
+    const speech = await loadSpeechService();
+
+    await speech.speakSmart('Ciao', { provider: 'elevenlabs', onError });
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(synth.speak).not.toHaveBeenCalled();
+  });
 
   it('uses browser speech directly for the browser provider', async () => {
     const speech = await loadSpeechService();

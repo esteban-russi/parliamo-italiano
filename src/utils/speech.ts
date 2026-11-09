@@ -1,5 +1,6 @@
 /**
- * Speech Service supporting real server-side Gemini 3.8 Flash TTS audio and fallback browser Web Speech API
+ * Speech Service: server-side Gemini / Cloud TTS audio, plus browser Web Speech API
+ * only when the learner explicitly selects the browser provider (never as a fallback)
  */
 
 /** Speed multiplier used when a learner asks the tutor to speak more slowly. */
@@ -84,7 +85,7 @@ class SpeechService {
       await audio.play();
       return true;
     } catch (err) {
-      console.warn('Server TTS failed, falling back to browser synthesis:', err);
+      console.warn('Server TTS failed:', err);
       if (options.onError) options.onError();
       return false;
     }
@@ -195,7 +196,8 @@ class SpeechService {
   }
 
   /**
-   * Smart speech function: attempts Gemini real server TTS first if selected, then falls back cleanly
+   * Speak with the selected provider. Server TTS failures surface through
+   * onError; there is no fallback to the browser's synthetic voice.
    */
   public async speakSmart(
     text: string,
@@ -216,44 +218,37 @@ class SpeechService {
       options = { ...options, rate: (options.rate || 0.95) * SLOW_FACTOR };
     }
 
-    // A failed server request can surface both as onError and as a false
-    // return value; guard so the browser fallback only speaks once.
-    let fellBack = false;
-    const fallbackToBrowser = () => {
-      if (fellBack) return;
-      fellBack = true;
-      this.speakItalian(text, options);
-    };
-
     if (options.provider === 'gemini_live') {
-      const success = await this.speakWithGemini(text, {
+      await this.speakWithGemini(text, {
         voiceName: options.voiceName,
         playbackRate: options.slow ? SLOW_FACTOR : 1,
         onStart: options.onStart,
         onEnd: options.onEnd,
-        onError: fallbackToBrowser
+        onError: options.onError
       });
-
-      if (!success) fallbackToBrowser();
       return;
     }
 
     if (options.provider === 'gcp_cloud_tts') {
-      const success = await this.speakWithGcpCloudTts(text, {
+      await this.speakWithGcpCloudTts(text, {
         voiceName: options.voiceName?.startsWith('it-IT-') ? options.voiceName : undefined,
         speakingRate: options.slow ? baseRate * SLOW_FACTOR : baseRate,
         gender: options.gender,
         onStart: options.onStart,
         onEnd: options.onEnd,
-        onError: fallbackToBrowser
+        onError: options.onError
       });
-
-      if (!success) fallbackToBrowser();
       return;
     }
 
-    // Default to browser
-    this.speakItalian(text, options);
+    if (options.provider === 'browser_tts') {
+      this.speakItalian(text, options);
+      return;
+    }
+
+    // Mock providers (ElevenLabs, OpenAI) have no backend yet
+    console.warn(`Voice provider "${options.provider}" is not implemented`);
+    options.onError?.();
   }
 
   public stopSpeaking(): void {

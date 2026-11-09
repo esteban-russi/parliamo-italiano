@@ -80,7 +80,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
         },
         onError: () => {
           setIsTestingVoice(false);
-          setTestStatusMessage('Playback finished.');
+          setTestStatusMessage('Voice test failed. Check the server logs.');
           setTimeout(() => setTestStatusMessage(''), 3000);
         }
       }
