@@ -1,6 +1,29 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { app, cloudSttEncodingFor, stripBase64DataUrlPrefix } from '../server';
+import { app, cloudSttEncodingFor, parseModelJsonResponse, stripBase64DataUrlPrefix } from '../server';
+
+describe('parseModelJsonResponse', () => {
+  it('parses pure JSON correctly', () => {
+    const parsed = parseModelJsonResponse('{"text":"ciao"}', { text: 'fallback' });
+    expect(parsed).toEqual({ text: 'ciao' });
+  });
+
+  it('strips markdown code fences before parsing', () => {
+    const raw = '```json\n{"text":"ciao","translation":"hello"}\n```';
+    const parsed = parseModelJsonResponse(raw, { text: 'fallback', translation: '' });
+    expect(parsed).toEqual({ text: 'ciao', translation: 'hello' });
+  });
+
+  it('returns fallback on invalid JSON syntax', () => {
+    const parsed = parseModelJsonResponse('not-json', { fallback: true });
+    expect(parsed).toEqual({ fallback: true });
+  });
+
+  it('returns fallback on empty or undefined input', () => {
+    expect(parseModelJsonResponse('', 'default')).toBe('default');
+    expect(parseModelJsonResponse(undefined, 'default')).toBe('default');
+  });
+});
 
 describe('stripBase64DataUrlPrefix', () => {
   it.each([
@@ -68,6 +91,14 @@ describe('POST /api/chat validation', () => {
     expect(res.body.fallbackNeeded).toBe(true);
   });
 
+  it('rejects userMessage longer than 2000 characters', async () => {
+    const res = await request(app)
+      .post('/api/chat')
+      .send({ ...valid, userMessage: 'x'.repeat(2001) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/exceeds maximum length/);
+  });
+
   it('returns 503 for a valid request when no AI credentials are configured', async () => {
     const res = await request(app).post('/api/chat').send(valid);
     expect(res.status).toBe(503);
@@ -79,6 +110,12 @@ describe('POST /api/tts and /api/stt validation', () => {
   it('rejects TTS without text', async () => {
     const res = await request(app).post('/api/tts').send({});
     expect(res.status).toBe(400);
+  });
+
+  it('rejects TTS text longer than 2000 characters', async () => {
+    const res = await request(app).post('/api/tts').send({ text: 'x'.repeat(2001) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/exceeds maximum length/);
   });
 
   it('rejects STT without audio', async () => {
@@ -98,5 +135,14 @@ describe('request body limits', () => {
   it('allows large STT uploads', async () => {
     const res = await request(app).post('/api/stt').send(twoMb);
     expect(res.status).toBe(400); // parsed, then rejected for missing audio
+  });
+});
+
+describe('API 404 fallback', () => {
+  it('returns structured JSON 404 for unknown /api routes', async () => {
+    const res = await request(app).get('/api/nonexistent-route');
+    expect(res.status).toBe(404);
+    expect(res.body).toHaveProperty('error');
+    expect(res.body.error).toMatch(/API route not found/);
   });
 });

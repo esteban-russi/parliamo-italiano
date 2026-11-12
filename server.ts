@@ -141,6 +141,9 @@ app.post('/api/chat', async (req, res) => {
     if (!userMessage || typeof userMessage !== 'string') {
       return res.status(400).json({ error: 'Missing userMessage' });
     }
+    if (userMessage.length > 2000) {
+      return res.status(400).json({ error: 'userMessage exceeds maximum length of 2000 characters' });
+    }
 
     // The system prompt is built only from server-owned text, so a caller
     // cannot repurpose the endpoint with their own instructions.
@@ -230,8 +233,11 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido con la seguente struttura esat
       }
     });
 
-    const responseText = response.text?.trim() || '{}';
-    const parsed = JSON.parse(responseText);
+    const parsed = parseModelJsonResponse(response.text, {
+      text: 'Scusa, ho avuto un problema a capire. Puoi ripetere?',
+      translation: 'Sorry, I had trouble understanding. Could you repeat that?',
+      grammarNotes: []
+    });
 
     res.json(parsed);
   } catch (error: any) {
@@ -257,6 +263,9 @@ app.post('/api/tts', async (req, res) => {
 
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Text is required for TTS' });
+    }
+    if (text.length > 2000) {
+      return res.status(400).json({ error: 'Text exceeds maximum length of 2000 characters for TTS' });
     }
 
     // 1. Google Cloud Text-to-Speech (Neural2 / Journey voices)
@@ -367,6 +376,24 @@ export function stripBase64DataUrlPrefix(payload: string): string {
   return payload.includes(',') ? payload.split(',')[1] : payload;
 }
 
+/**
+ * Safely parse a JSON string from an LLM response, stripping optional markdown
+ * code fences (```json ... ```) and returning a fallback value if parsing fails.
+ */
+export function parseModelJsonResponse<T>(rawText: string | undefined | null, fallback: T): T {
+  if (!rawText) return fallback;
+  const cleaned = rawText
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 /** Map a browser recording MIME type to a Cloud Speech-to-Text encoding, or null if unsupported. */
 export function cloudSttEncodingFor(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'LINEAR16' | null {
   if (mimeType.includes('webm')) return 'WEBM_OPUS';
@@ -463,8 +490,7 @@ Return ONLY a valid JSON object matching this schema:
         }
       });
 
-      const responseText = geminiResponse.text?.trim() || '{}';
-      const parsed = JSON.parse(responseText);
+      const parsed = parseModelJsonResponse(geminiResponse.text, { transcript: '' });
 
       return res.json({
         transcript: parsed.transcript || '',
@@ -479,6 +505,11 @@ Return ONLY a valid JSON object matching this schema:
       error: error.message || 'Speech-to-text transcription failed'
     });
   }
+});
+
+// 404 handler for unknown API routes so they return structured JSON rather than falling through to SPA HTML
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.path}` });
 });
 
 // Setup Vite middleware in dev or static serving in production
