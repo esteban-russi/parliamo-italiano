@@ -182,14 +182,16 @@ Restituisci ESCLUSIVAMENTE un oggetto JSON valido con la seguente struttura esat
 }
 `.trim();
 
-    // Map conversation history
+    // Map conversation history safely, skipping any malformed items
     const contents: any[] = [];
     if (Array.isArray(history)) {
       for (const h of history.slice(-6)) {
-        contents.push({
-          role: h.sender === 'user' ? 'user' : 'model',
-          parts: [{ text: h.text }]
-        });
+        if (h && typeof h === 'object' && typeof h.text === 'string' && h.text.trim().length > 0) {
+          contents.push({
+            role: h.sender === 'user' ? 'user' : 'model',
+            parts: [{ text: h.text }]
+          });
+        }
       }
     }
     contents.push({

@@ -56,6 +56,18 @@ describe('POST /api/chat validation', () => {
     expect(res.status).toBe(400);
   });
 
+  it('safely handles null or malformed history entries without throwing 500', async () => {
+    const res = await request(app)
+      .post('/api/chat')
+      .send({
+        ...valid,
+        history: [null, undefined, 42, {}, { text: 123 }, { sender: 'user', text: '' }]
+      });
+    // With invalid history safely skipped, the valid request proceeds to credentials check (503 in test env)
+    expect(res.status).toBe(503);
+    expect(res.body.fallbackNeeded).toBe(true);
+  });
+
   it('returns 503 for a valid request when no AI credentials are configured', async () => {
     const res = await request(app).post('/api/chat').send(valid);
     expect(res.status).toBe(503);
