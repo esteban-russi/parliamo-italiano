@@ -95,13 +95,9 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
       temperature: 0.7,
       speechRate: 0.95,
       audioSamplingRate: '24kHz',
-      latencyMode: 'turbo',
       grammarStrictness: 'tutor',
-      regionalSlangLevel: 'subtle',
       subtitlesEnabled: true,
       autoPlayAudio: false,
-      customSystemPrompt: '',
-      apiMockLatencyMs: 180
     };
     setLocalSettings(defaults);
     onSaveSettings(defaults);
@@ -111,7 +107,7 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
     runtime: 'Parliamo Italiano Video & Audio Engine v3.2',
     endpoints: {
       tts: '/api/tts (Gemini 3.8 Flash-Lite TTS, 24kHz WAV)',
-      chat: '/api/chat (Gemini 3.8 Flash + Pedagogical JSON)'
+      chat: '/api/chat (Gemini 2.5 Flash + Pedagogical JSON)'
     },
     activeConfig: {
       provider: localSettings.voiceProvider,
@@ -121,12 +117,10 @@ export const DevSettingsDrawer: React.FC<DevSettingsDrawerProps> = ({
         voiceId: localSettings.voiceId,
         speechRate: localSettings.speechRate,
         samplingRate: localSettings.audioSamplingRate,
-        latencyTarget: localSettings.latencyMode === 'turbo' ? '< 300ms' : '~750ms'
       },
       modelParameters: {
         temperature: localSettings.temperature,
         pedagogicalMode: localSettings.grammarStrictness,
-        regionalSlangInjection: localSettings.regionalSlangLevel
       }
     }
   };

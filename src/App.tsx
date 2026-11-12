@@ -40,13 +40,9 @@ export default function App() {
     temperature: 0.7,
     speechRate: 0.95,
     audioSamplingRate: '24kHz',
-    latencyMode: 'turbo',
     grammarStrictness: 'tutor',
-    regionalSlangLevel: 'subtle',
     subtitlesEnabled: true,
     autoPlayAudio: false,
-    customSystemPrompt: '',
-    apiMockLatencyMs: 200
   });
 
   // Latest grammar tip from the tutor, featured in the notebook

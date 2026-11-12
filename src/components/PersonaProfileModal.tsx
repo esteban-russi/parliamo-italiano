@@ -149,7 +149,7 @@ export const PersonaProfileModal: React.FC<PersonaProfileModalProps> = ({
           <div className="flex items-center justify-between p-3.5 rounded-2xl bg-cobalt-tint border border-line">
             <div>
               <div className="text-xs font-bold text-ink">Assigned AI Voice</div>
-              <div className="text-[11px] text-cobalt font-mono-data">{persona.voiceId} (Gemini 3.8 Server)</div>
+              <div className="text-[11px] text-cobalt font-mono-data">{persona.voiceId} (Gemini Native Audio)</div>
             </div>
             <button
               onClick={handlePlayVoiceSample}
