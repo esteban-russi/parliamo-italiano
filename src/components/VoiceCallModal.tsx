@@ -4,6 +4,7 @@ import { Persona, CharacterSpeakingState, DevSettings } from '../types';
 import { PersonaBadge } from './PersonaBadge';
 import { speechService, createSpeechRecognizer, AudioRecorder, transcribeAudioBlob } from '../utils/speech';
 import { ITALIAN_PRACTICE_PHRASES } from '../data/personas';
+import { generateCallFallback } from '../data/fallbacks';
 import { useDialog } from '../hooks/useDialog';
 
 interface VoiceCallModalProps {
@@ -596,19 +597,3 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     </div>
   );
 };
-
-function generateCallFallback(_persona: Persona, userText: string): { it: string; en: string } {
-  const lower = userText.toLowerCase();
-
-  if (lower.includes('lavoro') || lower.includes('ufficio')) {
-    return {
-      it: 'Ah, perfetto! Che tipo di lavoro fai?',
-      en: 'Ah, great! What kind of work do you do?'
-    };
-  }
-
-  return {
-    it: 'Molto bene! Ti sento benissimo. Continua, raccontami ancora!',
-    en: 'Very good! I can hear you perfectly. Go on, tell me more!'
-  };
-}
