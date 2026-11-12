@@ -360,6 +360,11 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+/** Strip any `data:...;base64,` prefix from an incoming base64 payload. */
+export function stripBase64DataUrlPrefix(payload: string): string {
+  return payload.includes(',') ? payload.split(',')[1] : payload;
+}
+
 /** Map a browser recording MIME type to a Cloud Speech-to-Text encoding, or null if unsupported. */
 export function cloudSttEncodingFor(mimeType: string): 'WEBM_OPUS' | 'OGG_OPUS' | 'LINEAR16' | null {
   if (mimeType.includes('webm')) return 'WEBM_OPUS';
@@ -378,7 +383,7 @@ app.post('/api/stt', async (req, res) => {
       return res.status(400).json({ error: 'Missing audioBase64 in request body' });
     }
 
-    const cleanBase64 = audioBase64.replace(/^data:audio\/\w+;base64,/, '');
+    const cleanBase64 = stripBase64DataUrlPrefix(audioBase64);
 
     // 1. Try Google Cloud Speech-to-Text if the client is available and can decode
     // this container. Safari records audio/mp4 (AAC), which Cloud STT does not accept,

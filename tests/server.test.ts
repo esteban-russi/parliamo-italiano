@@ -1,6 +1,17 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { app, cloudSttEncodingFor } from '../server';
+import { app, cloudSttEncodingFor, stripBase64DataUrlPrefix } from '../server';
+
+describe('stripBase64DataUrlPrefix', () => {
+  it.each([
+    ['data:audio/webm;codecs=opus;base64,GkXfo59ChoEB', 'GkXfo59ChoEB'],
+    ['data:audio/ogg;codecs=opus;base64,T2dnUwACAA', 'T2dnUwACAA'],
+    ['data:audio/wav;base64,UklGRi4AAABXQVZF', 'UklGRi4AAABXQVZF'],
+    ['GkXfo59ChoEB', 'GkXfo59ChoEB'],
+  ])('strips prefix from %s', (input, expected) => {
+    expect(stripBase64DataUrlPrefix(input)).toBe(expected);
+  });
+});
 
 describe('cloudSttEncodingFor', () => {
   it.each([
