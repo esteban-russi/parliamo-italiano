@@ -5,7 +5,6 @@ export type VoiceProvider =
   | 'gcp_cloud_tts'
   | 'elevenlabs'
   | 'openai_tts'
-  | 'azure_speech'
   | 'browser_tts';
 
 export type SttProvider =
@@ -25,9 +24,7 @@ export interface ChatMessage {
   text: string;
   translation: string;
   grammarNotes?: GrammarNote[];
-  audioDuration?: string;
   timestamp: string;
-  isVoiceNote?: boolean;
 }
 
 export interface Persona {
@@ -75,15 +72,9 @@ export interface DevSettings {
   temperature: number;
   speechRate: number;
   audioSamplingRate: '16kHz' | '24kHz' | '48kHz';
-  latencyMode: 'turbo' | 'balanced' | 'studio';
   grammarStrictness: 'conversational' | 'tutor' | 'strict';
-  regionalSlangLevel: 'off' | 'subtle' | 'authentic';
   subtitlesEnabled: boolean;
   autoPlayAudio: boolean;
-  customSystemPrompt: string;
-  apiMockLatencyMs: number;
 }
 
-export type CallState = 'idle' | 'calling' | 'connected' | 'ended';
-export type CallMode = 'audio' | 'video';
 export type CharacterSpeakingState = 'idle' | 'listening' | 'thinking' | 'speaking';

@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { EMMANUELE, INITIAL_MESSAGES, INITIAL_SAVED_PHRASES } from './data/personas';
+import { generatePersonaFallbackMessage } from './data/fallbacks';
 import { ChatMessage, DevSettings, GrammarNote, Persona, SavedPhrase } from './types';
 import { ChatInterface } from './components/ChatInterface';
 import { VoiceCallModal } from './components/VoiceCallModal';
@@ -40,13 +41,9 @@ export default function App() {
     temperature: 0.7,
     speechRate: 0.95,
     audioSamplingRate: '24kHz',
-    latencyMode: 'turbo',
     grammarStrictness: 'tutor',
-    regionalSlangLevel: 'subtle',
     subtitlesEnabled: true,
     autoPlayAudio: false,
-    customSystemPrompt: '',
-    apiMockLatencyMs: 200
   });
 
   // Latest grammar tip from the tutor, featured in the notebook
@@ -249,39 +246,4 @@ export default function App() {
       />
     </div>
   );
-}
-
-// Fallback response generator if Gemini network is temporarily suspended
-function generatePersonaFallbackMessage(persona: Persona, userText: string): ChatMessage {
-  const lower = userText.toLowerCase();
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const base = { id: `b-${Date.now()}`, sender: 'persona' as const, personaId: persona.id, timestamp: time };
-
-  if (lower.includes('lavoro') || lower.includes('ufficio') || lower.includes('lavori')) {
-    return {
-      ...base,
-      text: 'Interessante! E ti piace il tuo lavoro?',
-      translation: 'Interesting! And do you like your job?',
-      grammarNotes: [
-        {
-          wordOrPhrase: 'ti piace',
-          explanation: 'Literally "is it pleasing to you". Use piace for one thing, piacciono for several.',
-          category: 'grammar'
-        }
-      ]
-    };
-  }
-
-  return {
-    ...base,
-    text: 'Bravo! Parli già molto bene. Raccontami: cosa fai di solito nel fine settimana?',
-    translation: 'Well done! You already speak very well. Tell me: what do you usually do at the weekend?',
-    grammarNotes: [
-      {
-        wordOrPhrase: 'di solito',
-        explanation: 'Means "usually". It goes before or after the verb: "di solito vado", "vado di solito".',
-        category: 'vocabulary'
-      }
-    ]
-  };
 }

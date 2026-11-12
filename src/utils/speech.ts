@@ -73,11 +73,13 @@ class SpeechService {
       };
 
       audio.onended = () => {
+        try { audio.src = ''; } catch { /* ignore */ }
         this.currentAudioElement = null;
         if (options.onEnd) options.onEnd();
       };
 
       audio.onerror = () => {
+        try { audio.src = ''; } catch { /* ignore */ }
         this.currentAudioElement = null;
         if (options.onError) options.onError();
       };
@@ -256,6 +258,7 @@ class SpeechService {
       try {
         this.currentAudioElement.pause();
         this.currentAudioElement.currentTime = 0;
+        this.currentAudioElement.src = '';
       } catch { /* ignore */ }
       this.currentAudioElement = null;
     }
@@ -468,6 +471,7 @@ export interface AudioRecorderOptions {
  */
 export class AudioRecorder {
   private mediaStream: MediaStream | null = null;
+  private ownsStream: boolean = true;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private recorderMimeType = '';
@@ -487,10 +491,11 @@ export class AudioRecorder {
     };
   }
 
-  public async start(): Promise<boolean> {
+  public async start(existingStream?: MediaStream): Promise<boolean> {
     if (this.isRecording) return true;
     try {
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+      this.ownsStream = !existingStream;
+      this.mediaStream = existingStream || await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -646,7 +651,9 @@ export class AudioRecorder {
         const finalBlob = new Blob(this.audioChunks, { type: mimeType });
         this.audioChunks = [];
         if (this.mediaStream) {
-          this.mediaStream.getTracks().forEach(t => t.stop());
+          if (this.ownsStream) {
+            this.mediaStream.getTracks().forEach(t => t.stop());
+          }
           this.mediaStream = null;
         }
         resolve(finalBlob);
@@ -679,7 +686,9 @@ export class AudioRecorder {
       try { this.mediaRecorder.stop(); } catch { /* ignore */ }
     }
     if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach(t => t.stop());
+      if (this.ownsStream) {
+        this.mediaStream.getTracks().forEach(t => t.stop());
+      }
       this.mediaStream = null;
     }
     this.audioChunks = [];

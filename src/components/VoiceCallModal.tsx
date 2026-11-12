@@ -4,6 +4,7 @@ import { Persona, CharacterSpeakingState, DevSettings } from '../types';
 import { PersonaBadge } from './PersonaBadge';
 import { speechService, createSpeechRecognizer, AudioRecorder, transcribeAudioBlob } from '../utils/speech';
 import { ITALIAN_PRACTICE_PHRASES } from '../data/personas';
+import { generateCallFallback } from '../data/fallbacks';
 import { useDialog } from '../hooks/useDialog';
 
 interface VoiceCallModalProps {
@@ -56,6 +57,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   const isAiSpeakingRef = useRef<boolean>(false);
   const activeTranscriptRef = useRef<string>('');
   const silenceTimerRef = useRef<number | null>(null);
+  const listenDelayTimerRef = useRef<number | null>(null);
+  // Shared persistent MediaStream reused across turns during a call session
+  const sharedStreamRef = useRef<MediaStream | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognizerRef = useRef<any>(null);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
@@ -87,7 +91,8 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       },
       onEnd: () => {
         // Short delay so the recogniser does not pick up the speaker tail
-        setTimeout(() => {
+        if (listenDelayTimerRef.current) clearTimeout(listenDelayTimerRef.current);
+        listenDelayTimerRef.current = window.setTimeout(() => {
           isAiSpeakingRef.current = false;
           setSpeakingState('listening');
         }, 400);
@@ -214,45 +219,67 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     const useCloudStt = devSettingsRef.current.sttProvider === 'production_cloud';
 
     if (useCloudStt) {
-      // Production Cloud STT pipeline with Voice Activity Detection (VAD)
-      const recorder = new AudioRecorder({
-        silenceThresholdMs: 1200,
-        rmsThreshold: 0.02,
-        onAudioLevel: (lvl) => {
-          if (lvl > 0.04 && !isAiSpeakingRef.current && !isTranscribingRef.current) {
-            setLiveUserTranscript((prev) => prev.startsWith('Trascrizione') ? prev : 'Ti ascolto…');
+      let isCancelled = false;
+
+      // Reuse persistent microphone MediaStream across conversation turns
+      const initRecorder = async () => {
+        try {
+          if (!sharedStreamRef.current) {
+            sharedStreamRef.current = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              }
+            });
           }
-        },
-        onSilenceDetected: async (blob) => {
-          if (isAiSpeakingRef.current) return;
-          try {
-            setSpeakingState('thinking');
-            setLiveUserTranscript('Trascrizione vocale GCP…');
-            isTranscribingRef.current = true;
+          if (isCancelled) return;
 
-            const result = await transcribeAudioBlob(blob, 'it-IT');
-            const trimmed = result.transcript?.trim();
+          const recorder = new AudioRecorder({
+            silenceThresholdMs: 1200,
+            rmsThreshold: 0.02,
+            onAudioLevel: (lvl) => {
+              if (lvl > 0.04 && !isAiSpeakingRef.current && !isTranscribingRef.current) {
+                setLiveUserTranscript((prev) => prev.startsWith('Trascrizione') ? prev : 'Ti ascolto…');
+              }
+            },
+            onSilenceDetected: async (blob) => {
+              if (isAiSpeakingRef.current) return;
+              try {
+                setSpeakingState('thinking');
+                setLiveUserTranscript('Trascrizione vocale GCP…');
+                isTranscribingRef.current = true;
 
-            if (trimmed && !isAiSpeakingRef.current) {
-              processLiveUserSpeech(trimmed);
-            } else {
-              setSpeakingState('listening');
-              setLiveUserTranscript('');
+                const result = await transcribeAudioBlob(blob, 'it-IT');
+                const trimmed = result.transcript?.trim();
+
+                if (trimmed && !isAiSpeakingRef.current) {
+                  processLiveUserSpeech(trimmed);
+                } else {
+                  setSpeakingState('listening');
+                  setLiveUserTranscript('');
+                }
+              } catch (err) {
+                console.warn('Cloud STT transcription failed:', err);
+                setSpeakingState('listening');
+                setLiveUserTranscript('');
+              } finally {
+                isTranscribingRef.current = false;
+              }
             }
-          } catch (err) {
-            console.warn('Cloud STT transcription failed:', err);
-            setSpeakingState('listening');
-            setLiveUserTranscript('');
-          } finally {
-            isTranscribingRef.current = false;
-          }
-        }
-      });
+          });
 
-      audioRecorderRef.current = recorder;
-      recorder.start().catch(err => console.warn('Could not start AudioRecorder in call:', err));
+          audioRecorderRef.current = recorder;
+          await recorder.start(sharedStreamRef.current);
+        } catch (err) {
+          console.warn('Could not start AudioRecorder in call:', err);
+        }
+      };
+
+      initRecorder();
 
       return () => {
+        isCancelled = true;
         if (audioRecorderRef.current) {
           audioRecorderRef.current.cancel();
           audioRecorderRef.current = null;
@@ -347,6 +374,7 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       clearTimeout(connectTimeout);
       if (timerRef.current) clearInterval(timerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (listenDelayTimerRef.current) clearTimeout(listenDelayTimerRef.current);
       speechService.stopSpeaking();
       if (recognizerRef.current) {
         try { recognizerRef.current.stop(); } catch { /* ignore */ }
@@ -354,6 +382,10 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
       if (audioRecorderRef.current) {
         audioRecorderRef.current.cancel();
         audioRecorderRef.current = null;
+      }
+      if (sharedStreamRef.current) {
+        sharedStreamRef.current.getTracks().forEach(t => t.stop());
+        sharedStreamRef.current = null;
       }
     };
   }, []); // Strictly empty dependency array so the call connects once!
@@ -363,9 +395,14 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     speechService.playHangupTone();
     if (timerRef.current) clearInterval(timerRef.current);
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    if (listenDelayTimerRef.current) clearTimeout(listenDelayTimerRef.current);
     if (audioRecorderRef.current) {
       audioRecorderRef.current.cancel();
       audioRecorderRef.current = null;
+    }
+    if (sharedStreamRef.current) {
+      sharedStreamRef.current.getTracks().forEach(t => t.stop());
+      sharedStreamRef.current = null;
     }
     onEndCall();
   };
@@ -596,19 +633,3 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
     </div>
   );
 };
-
-function generateCallFallback(_persona: Persona, userText: string): { it: string; en: string } {
-  const lower = userText.toLowerCase();
-
-  if (lower.includes('lavoro') || lower.includes('ufficio')) {
-    return {
-      it: 'Ah, perfetto! Che tipo di lavoro fai?',
-      en: 'Ah, great! What kind of work do you do?'
-    };
-  }
-
-  return {
-    it: 'Molto bene! Ti sento benissimo. Continua, raccontami ancora!',
-    en: 'Very good! I can hear you perfectly. Go on, tell me more!'
-  };
-}
