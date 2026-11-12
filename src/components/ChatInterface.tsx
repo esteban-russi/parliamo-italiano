@@ -78,7 +78,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [isHelpOpen]);
 
   const handleSend = () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || isAiGenerating) return;
     onSendMessage(inputText.trim());
     setInputText('');
   };
@@ -362,7 +362,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSend();
+                if (e.key === 'Enter' && !isAiGenerating) handleSend();
               }}
               placeholder={`Reply to ${persona.name} in Italian…`}
               aria-label={`Message ${persona.name} in Italian`}
@@ -401,7 +401,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <button
               type="button"
               onClick={handleSend}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || isAiGenerating}
               className="shrink-0 h-12 px-5 sm:px-7 rounded-full bg-cobalt hover:bg-cobalt-strong text-canvas text-base font-medium transition-colors disabled:opacity-50 disabled:hover:bg-cobalt"
             >
               Send
