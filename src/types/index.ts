@@ -1,5 +1,11 @@
 export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
 
+export interface LearnerProfile {
+  name: string;
+  level: CefrLevel;
+  personaId: string;
+}
+
 export type VoiceProvider = 
   | 'gemini_live'
   | 'gcp_cloud_tts'

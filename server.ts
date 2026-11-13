@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import { SpeechClient } from '@google-cloud/speech';
-import { PERSONA_PROMPTS } from './src/data/personaPrompts';
+import { PERSONA_PROMPTS, LEVEL_PROMPTS, buildSystemInstruction } from './src/data/personaPrompts';
+import type { CefrLevel } from './src/types';
 
 dotenv.config();
 
@@ -136,7 +137,15 @@ const GRAMMAR_STRICTNESS_LEVELS = ['conversational', 'tutor', 'strict'];
 // Gemini Conversational Chat API with Italian pedagogical grammar analysis
 app.post('/api/chat', async (req, res) => {
   try {
-    const { personaId, history, userMessage, temperature = 0.7, grammarStrictness = 'tutor' } = req.body;
+    const {
+      personaId,
+      history,
+      userMessage,
+      temperature = 0.7,
+      grammarStrictness = 'tutor',
+      learnerLevel = 'A2',
+      learnerName
+    } = req.body;
 
     if (!userMessage || typeof userMessage !== 'string') {
       return res.status(400).json({ error: 'Missing userMessage' });
@@ -147,14 +156,15 @@ app.post('/api/chat', async (req, res) => {
 
     // The system prompt is built only from server-owned text, so a caller
     // cannot repurpose the endpoint with their own instructions.
-    const personaPrompt = typeof personaId === 'string' && Object.hasOwn(PERSONA_PROMPTS, personaId)
-      ? PERSONA_PROMPTS[personaId]
-      : undefined;
-    if (!personaPrompt) {
+    const hasPersona = typeof personaId === 'string' && Object.hasOwn(PERSONA_PROMPTS, personaId);
+    if (!hasPersona) {
       return res.status(400).json({ error: `Unknown personaId: ${String(personaId)}` });
     }
     if (!GRAMMAR_STRICTNESS_LEVELS.includes(grammarStrictness)) {
       return res.status(400).json({ error: `grammarStrictness must be one of ${GRAMMAR_STRICTNESS_LEVELS.join(', ')}` });
+    }
+    if (typeof learnerLevel !== 'string' || !Object.hasOwn(LEVEL_PROMPTS, learnerLevel)) {
+      return res.status(400).json({ error: `learnerLevel must be one of ${Object.keys(LEVEL_PROMPTS).join(', ')}` });
     }
 
     if (!HAS_GENAI_CREDENTIALS) {
@@ -164,26 +174,12 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const systemInstruction = `
-${personaPrompt}
-Tu sei un tutor madrelingua italiano per una piattaforma di apprendimento conversazionale ("Parliamo Italiano").
-Rigidità correzione: "${grammarStrictness}".
-Rispondi SEMPRE in italiano naturale, accogliente e culturalmente autentico.
-Includi sempre la traduzione in inglese e da 1 a 3 note grammaticali/culturali concrete (parole nuove, congiuntivo, modi di dire, pronuncia).
-
-Restituisci ESCLUSIVAMENTE un oggetto JSON valido con la seguente struttura esatta:
-{
-  "text": "La tua risposta in italiano",
-  "translation": "English translation of your reply",
-  "grammarNotes": [
-    {
-      "wordOrPhrase": "parola o espressione chiave",
-      "explanation": "spiegazione in inglese chiara e sintetica",
-      "category": "verb" | "idiom" | "grammar" | "vocabulary" | "cultural"
-    }
-  ]
-}
-`.trim();
+    const systemInstruction = buildSystemInstruction({
+      personaId,
+      level: learnerLevel as CefrLevel,
+      grammarStrictness,
+      learnerName
+    });
 
     // Map conversation history safely, skipping any malformed items
     const contents: any[] = [];
