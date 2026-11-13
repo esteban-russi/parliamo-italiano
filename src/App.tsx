@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { EMMANUELE, INITIAL_MESSAGES, INITIAL_SAVED_PHRASES } from './data/personas';
+import { EMMANUELE, INITIAL_MESSAGES, INITIAL_SAVED_PHRASES, TUTORS, createInitialMessages } from './data/personas';
 import { generatePersonaFallbackMessage } from './data/fallbacks';
-import { ChatMessage, DevSettings, GrammarNote, Persona, SavedPhrase } from './types';
+import { ChatMessage, DevSettings, GrammarNote, LearnerProfile, Persona, SavedPhrase } from './types';
 import { ChatInterface } from './components/ChatInterface';
 import { VoiceCallModal } from './components/VoiceCallModal';
 import { DevSettingsDrawer } from './components/DevSettingsDrawer';
@@ -9,16 +9,22 @@ import { PersonaProfileModal } from './components/PersonaProfileModal';
 import { IconRail } from './components/IconRail';
 import { TopHeader } from './components/TopHeader';
 import { UtilityPanel } from './components/UtilityPanel';
+import { OnboardingPage } from './components/OnboardingPage';
 import { useDialog } from './hooks/useDialog';
 import { speechService } from './utils/speech';
-
-const LEARNER_INITIAL = 'E';
 
 const countWords = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 export default function App() {
-  // Single tutor for now: Emmanuele the Roman
-  const persona = EMMANUELE;
+  const [learnerProfile, setLearnerProfile] = useState<LearnerProfile | null>(null);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(true);
+
+  const persona: Persona = useMemo(
+    () => TUTORS.find((t) => t.id === learnerProfile?.personaId) ?? EMMANUELE,
+    [learnerProfile?.personaId]
+  );
+  const learnerInitial = (learnerProfile?.name.trim().charAt(0) || 'E').toUpperCase();
+
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [savedPhrases, setSavedPhrases] = useState<SavedPhrase[]>(INITIAL_SAVED_PHRASES);
   const [isAiGenerating, setIsAiGenerating] = useState<boolean>(false);
@@ -76,6 +82,13 @@ export default function App() {
     });
   };
 
+  const handleCompleteOnboarding = (profile: LearnerProfile) => {
+    const selectedTutor = TUTORS.find((t) => t.id === profile.personaId) ?? EMMANUELE;
+    setLearnerProfile(profile);
+    setIsOnboardingOpen(false);
+    setMessages(createInitialMessages(selectedTutor, profile.name, profile.level));
+  };
+
   // Handle student sending message in chat with real server Gemini API integration
   const handleSendMessage = async (text: string) => {
     const userMsg: ChatMessage = {
@@ -100,7 +113,9 @@ export default function App() {
           history: updated.slice(-6),
           userMessage: text,
           temperature: devSettings.temperature,
-          grammarStrictness: devSettings.grammarStrictness
+          grammarStrictness: devSettings.grammarStrictness,
+          learnerLevel: learnerProfile?.level ?? 'A2',
+          learnerName: learnerProfile?.name
         })
       });
 
@@ -167,21 +182,33 @@ export default function App() {
     onRemovePhrase: (id: string) => setSavedPhrases(prev => prev.filter(p => p.id !== id))
   };
 
+  if (!learnerProfile || isOnboardingOpen) {
+    return (
+      <OnboardingPage
+        initialProfile={learnerProfile}
+        onComplete={handleCompleteOnboarding}
+      />
+    );
+  }
+
   return (
     <div className="h-dvh w-full flex overflow-hidden bg-canvas text-ink">
       <IconRail
-        learnerInitial={LEARNER_INITIAL}
+        learnerInitial={learnerInitial}
         onOpenNotebook={openNotebook}
         onOpenVoiceLab={() => setIsDevLabOpen(true)}
+        onEditProfile={() => setIsOnboardingOpen(true)}
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
         <TopHeader
           persona={persona}
-          learnerInitial={LEARNER_INITIAL}
+          learnerInitial={learnerInitial}
+          learnerLevel={learnerProfile.level}
           mode={isCallOpen ? 'voice' : 'text'}
           onSelectVoice={startCall}
           onOpenNotebook={openNotebook}
+          onEditProfile={() => setIsOnboardingOpen(true)}
         />
 
         <div className="flex-1 min-h-0 flex gap-5 lg:pr-5 lg:pb-5">
@@ -226,6 +253,7 @@ export default function App() {
         <VoiceCallModal
           persona={persona}
           devSettings={devSettings}
+          learnerProfile={learnerProfile}
           onEndCall={() => setIsCallOpen(false)}
         />
       )}

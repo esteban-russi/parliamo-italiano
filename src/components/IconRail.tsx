@@ -6,13 +6,19 @@ interface IconRailProps {
   learnerInitial: string;
   onOpenNotebook: () => void;
   onOpenVoiceLab: () => void;
+  onEditProfile?: () => void;
 }
 
 const railButton =
   'w-12 h-12 rounded-2xl flex items-center justify-center transition-colors text-ink-faint hover:text-ink hover:bg-cobalt-tint';
 
 /** 72px navigation rail on the left edge (md and up). */
-export const IconRail: React.FC<IconRailProps> = ({ learnerInitial, onOpenNotebook, onOpenVoiceLab }) => (
+export const IconRail: React.FC<IconRailProps> = ({
+  learnerInitial,
+  onOpenNotebook,
+  onOpenVoiceLab,
+  onEditProfile
+}) => (
   <nav
     aria-label="Main"
     className="hidden md:flex w-[72px] shrink-0 flex-col items-center gap-3 py-5 bg-surface border-r border-line"
@@ -33,6 +39,11 @@ export const IconRail: React.FC<IconRailProps> = ({ learnerInitial, onOpenNotebo
       <Settings className="w-5 h-5" />
     </button>
 
-    <UserBadge initial={learnerInitial} className="mt-auto" />
+    <UserBadge
+      initial={learnerInitial}
+      onClick={onEditProfile}
+      title="Change name, level, or tutor"
+      className="mt-auto"
+    />
   </nav>
 );

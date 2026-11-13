@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, Keyboard, Lightbulb, Mic, MicOff, PhoneOff, Repeat2, Snail, X } from 'lucide-react';
-import { Persona, CharacterSpeakingState, DevSettings } from '../types';
+import { Persona, CharacterSpeakingState, DevSettings, LearnerProfile } from '../types';
 import { PersonaBadge } from './PersonaBadge';
 import { speechService, createSpeechRecognizer, AudioRecorder, transcribeAudioBlob } from '../utils/speech';
 import { ITALIAN_PRACTICE_PHRASES } from '../data/personas';
@@ -10,6 +10,7 @@ import { useDialog } from '../hooks/useDialog';
 interface VoiceCallModalProps {
   persona: Persona;
   devSettings: DevSettings;
+  learnerProfile?: LearnerProfile | null;
   onEndCall: () => void;
 }
 
@@ -24,6 +25,7 @@ interface CallExchange {
 export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
   persona,
   devSettings,
+  learnerProfile,
   onEndCall
 }) => {
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected'>('connecting');
@@ -44,6 +46,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
 
   const devSettingsRef = useRef<DevSettings>(devSettings);
   devSettingsRef.current = devSettings;
+
+  const learnerProfileRef = useRef<LearnerProfile | null | undefined>(learnerProfile);
+  learnerProfileRef.current = learnerProfile;
 
   const isSlowRef = useRef<boolean>(isSlow);
   isSlowRef.current = isSlow;
@@ -182,7 +187,9 @@ export const VoiceCallModal: React.FC<VoiceCallModalProps> = ({
           history: dialogueHistoryRef.current.slice(-4),
           userMessage: trimmed,
           temperature: devSettingsRef.current.temperature,
-          grammarStrictness: devSettingsRef.current.grammarStrictness
+          grammarStrictness: devSettingsRef.current.grammarStrictness,
+          learnerLevel: learnerProfileRef.current?.level ?? 'A2',
+          learnerName: learnerProfileRef.current?.name
         })
       });
 
