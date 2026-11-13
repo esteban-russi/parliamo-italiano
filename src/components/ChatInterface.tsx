@@ -28,7 +28,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isAiGenerating = false
 }) => {
   const [inputText, setInputText] = useState<string>('');
-  const [hiddenTranslations, setHiddenTranslations] = useState<Set<string>>(new Set());
+  const [visibleTranslations, setVisibleTranslations] = useState<Set<string>>(new Set());
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [isRecordingMic, setIsRecordingMic] = useState<boolean>(false);
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
@@ -106,7 +106,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const toggleTranslation = (id: string) => {
-    setHiddenTranslations(prev => {
+    setVisibleTranslations(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -211,7 +211,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const isUser = message.sender === 'user';
           const isPlaying = speakingId === message.id;
           const isSaved = savedPhraseIds.includes(message.id);
-          const showTranslation = !!message.translation && !hiddenTranslations.has(message.id);
+          const showTranslation = !!message.translation && visibleTranslations.has(message.id);
 
           if (isUser) {
             return (
